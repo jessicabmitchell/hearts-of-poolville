@@ -1,7 +1,10 @@
 import Link from 'next/link';
 import WaterTower from '@/components/WaterTower';
-import { PROGRAMS } from '@/lib/programs';
+import { PROGRAMS, isOpen } from '@/lib/programs';
 import { SITE } from '@/lib/site';
+
+// Rebuild hourly so the "Requests open" tags follow the open and close dates.
+export const revalidate = 3600;
 
 export default function Home() {
   const hasContact = Boolean(SITE.email || SITE.facebookUrl);
@@ -41,7 +44,7 @@ export default function Home() {
               <div>
                 <h3>
                   {p.name}
-                  {p.requestsOpen && <span className="open">Requests open</span>}
+                  {isOpen(p) && <span className="open">Requests open</span>}
                 </h3>
                 <p>{p.blurb}</p>
               </div>

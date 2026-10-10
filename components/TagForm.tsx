@@ -3,22 +3,25 @@
 import Link from 'next/link';
 import { useActionState } from 'react';
 import { submitTagPickup } from '@/app/actions';
+import { dict, type Lang } from '@/lib/i18n';
 import type { FormState } from '@/lib/types';
 
 const initial: FormState = { status: 'idle' };
 
-export default function TagForm() {
+export default function TagForm({ lang }: { lang: Lang }) {
   const [state, action, pending] = useActionState(submitTagPickup, initial);
   const v = state.values ?? {};
   const str = (key: string) => (typeof v[key] === 'string' ? (v[key] as string) : '');
+  const c = dict(lang).common;
+  const t = dict(lang).tag;
 
   if (state.status === 'ok') {
     return (
       <div className="panel">
-        <h2 className="h-sm">Thank you for taking a tag.</h2>
-        <p>We have your name down for it. Neighbors like you make this possible.</p>
-        <Link className="btn ghost" href="/">
-          Back to home
+        <h2 className="h-sm">{t.thanks}</h2>
+        <p>{t.thanksBody}</p>
+        <Link className="btn ghost" href={lang === 'es' ? '/?lang=es' : '/'}>
+          {c.backHome}
         </Link>
       </div>
     );
@@ -26,6 +29,7 @@ export default function TagForm() {
 
   return (
     <form action={action} className="form">
+      <input type="hidden" name="lang" value={lang} />
       <div className="hp" aria-hidden="true">
         <label>
           Website
@@ -34,33 +38,31 @@ export default function TagForm() {
       </div>
 
       <div className="field">
-        <label htmlFor="tags">Which tag did you take?</label>
+        <label htmlFor="tags">{t.tags}</label>
         <input id="tags" name="tags" type="text" defaultValue={str('tags')} required />
-        <span className="hint">
-          Enter the number or name written on the tag. If you took more than one, list them all.
-        </span>
+        <span className="hint">{t.tagsHint}</span>
       </div>
 
       <div className="field">
-        <label htmlFor="name">Your name</label>
+        <label htmlFor="name">{c.name}</label>
         <input id="name" name="name" type="text" autoComplete="name" defaultValue={str('name')} required />
       </div>
 
       <div className="row2">
         <div className="field">
-          <label htmlFor="phone">Phone</label>
+          <label htmlFor="phone">{c.phone}</label>
           <input id="phone" name="phone" type="tel" autoComplete="tel" defaultValue={str('phone')} />
         </div>
         <div className="field">
-          <label htmlFor="email">Email</label>
+          <label htmlFor="email">{c.email}</label>
           <input id="email" name="email" type="email" autoComplete="email" defaultValue={str('email')} />
         </div>
       </div>
-      <p className="fine">Give us at least one way to reach you.</p>
+      <p className="fine">{c.oneWay}</p>
 
       <div className="field">
         <label htmlFor="notes">
-          Notes <span className="hint">(optional)</span>
+          {t.notes} <span className="hint">{c.optional}</span>
         </label>
         <textarea id="notes" name="notes" defaultValue={str('notes')} />
       </div>
@@ -73,7 +75,7 @@ export default function TagForm() {
 
       <div>
         <button className="btn primary" type="submit" disabled={pending}>
-          {pending ? 'Sending...' : 'Save my tag'}
+          {pending ? c.sending : t.submit}
         </button>
       </div>
     </form>

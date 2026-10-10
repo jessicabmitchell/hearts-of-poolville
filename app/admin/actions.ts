@@ -33,7 +33,8 @@ export async function updateStatus(formData: FormData) {
   const status = String(formData.get('status') ?? '');
 
   const valid =
-    (table === 'help_requests' && (REQUEST_STATUSES as readonly string[]).includes(status)) ||
+    ((table === 'help_requests' || table === 'dinner_applications' || table === 'angel_tree_applications') &&
+      (REQUEST_STATUSES as readonly string[]).includes(status)) ||
     (table === 'tag_pickups' && (TAG_STATUSES as readonly string[]).includes(status));
   if (!valid || !id) return;
 

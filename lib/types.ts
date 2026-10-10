@@ -30,3 +30,48 @@ export type TagPickup = {
   notes: string | null;
   status: (typeof TAG_STATUSES)[number];
 };
+
+export type DinnerApplication = {
+  id: string;
+  created_at: string;
+  holiday: 'thanksgiving' | 'christmas';
+  for_self: boolean;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  pickup_by: string | null;
+  recipient_name: string | null;
+  recipient_phone: string | null;
+  recipient_email: string | null;
+  household_size: number | null;
+  address: string | null;
+  language: 'en' | 'es';
+  status: (typeof REQUEST_STATUSES)[number];
+};
+
+export type AngelTreeApplication = {
+  id: string;
+  created_at: string;
+  for_self: boolean;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  pickup_by: string | null;
+  parent_name: string | null;
+  parent_phone: string | null;
+  parent_email: string | null;
+  address: string | null;
+  child_name: string;
+  age: string;
+  gender: 'male' | 'female' | null;
+  shirt_size: string | null;
+  jeans_size: string | null;
+  shoe_size: string | null;
+  coat_size: string | null;
+  bedding_size: string | null;
+  interests: string | null;
+  favorite_color: string | null;
+  wishes: string | null;
+  language: 'en' | 'es';
+  status: (typeof REQUEST_STATUSES)[number];
+};

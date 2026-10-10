@@ -451,6 +451,28 @@ h2.h-sm {
   opacity: 0.55;
 }
 
+p.check {
+  margin: 0;
+}
+
+.check a {
+  font-weight: 600;
+}
+
+.lang {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 8px;
+}
+
+.form h2.h-sm {
+  margin: 8px 0 0;
+}
+
+.request-other {
+  margin-top: 40px;
+}
+
 .check em {
   font-style: normal;
   font-weight: 400;

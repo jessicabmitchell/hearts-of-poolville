@@ -4,7 +4,11 @@ Website for Hearts of Poolville, a community charity in Poolville, Texas.
 
 - **Home page** with the year-round programs
 - **/request** form for families asking for help (Thanksgiving, Christmas, Angel Tree, Easter, back-to-school)
+- **/thanksgiving** and **/christmas** dinner applications (for your own family or another family)
+- **/angel-tree/apply** Angel Tree sign-up for a child (one form per child)
 - **/angel-tree** form for people who took a tag from the tree
+- Every form has an English/Español switch. Add `?lang=es` to a link (for example
+  `/thanksgiving?lang=es`) to open it in Spanish.
 - **/admin** private page for volunteers: see submissions, mark them done, download CSV
 
 Built with Next.js 15 and Supabase. Nothing a visitor submits is readable from the browser. All
@@ -13,7 +17,7 @@ reads and writes happen on the server.
 ## Set up
 
 1. **Create a Supabase project** at supabase.com.
-2. Open **SQL Editor**, paste in `supabase/schema.sql`, and run it. It creates two tables and
+2. Open **SQL Editor**, paste in `supabase/schema.sql`, and run it. It creates the tables and
    turns on row level security with no public policies, so only the server can touch them.
 3. **Lock down sign-ups.** In Supabase go to Authentication > Sign In / Providers and turn off
    "Allow new users to sign up". Then go to Authentication > Users > Add user and create an account
@@ -53,12 +57,17 @@ If you would rather use a GitHub Actions schedule, point it at the same route wi
 
 ## Things you will edit
 
-- **`lib/programs.ts`** has the program list. Set `requestsOpen` to `true` or `false` to open and
-  close each program. Closed programs show as unavailable on the request form and lose the
-  "Requests open" tag on the home page. The defaults assume Thanksgiving, Angel Tree, and
-  Christmas are open and Easter and back-to-school are closed. Change them to match reality.
+- **`lib/programs.ts`** has the program list. Thanksgiving, Angel Tree, and Christmas open and
+  close on their own using their `opens` and `closes` dates (Poolville time, both days included).
+  Update those dates each year. Set `requestsOpen` to `false` to close a program early no matter
+  the dates. Easter and back-to-school have no dates, so `requestsOpen` alone opens and closes
+  them. Closed programs lose the "Requests open" tag on the home page within an hour.
 - **`lib/site.ts`** has your email and Facebook link. Fill them in and a Contact section appears.
-- **`components/RequestForm.tsx` and `components/TagForm.tsx`** hold the form fields. If your
+- **`lib/programs.ts`** also has the Angel Tree, Thanksgiving, and Christmas pickup dates. Update them each year.
+- **`lib/i18n.ts`** has every word on the forms, in English and Spanish. Edit both languages
+  together, and have a native Spanish speaker check the Spanish.
+- **`components/RequestForm.tsx`, `components/DinnerForm.tsx`, `components/AngelTreeForm.tsx`, and `components/TagForm.tsx`**
+  hold the form fields. If your
   Google Forms ask something this does not, add a column in `supabase/schema.sql` (and run an
   `alter table` in Supabase), then add the field to the form and to `app/actions.ts`.
 

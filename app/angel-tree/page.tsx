@@ -1,20 +1,24 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import LangToggle from '@/components/LangToggle';
 import TagForm from '@/components/TagForm';
+import { dict, toLang } from '@/lib/i18n';
 
 export const metadata: Metadata = { title: 'Angel Tree tag form' };
 
-export default function AngelTreePage() {
+export default async function AngelTreePage({ searchParams }: { searchParams: Promise<{ lang?: string }> }) {
+  const lang = toLang((await searchParams).lang);
+  const t = dict(lang).tag;
+
   return (
-    <main className="narrow">
-      <p className="eyebrow">Angel Tree</p>
-      <h1 className="h-page">Took a tag?</h1>
-      <p className="lede small">
-        Tell us which tag you took so we know who has it. Thank you for helping a neighbor.
-      </p>
-      <TagForm />
+    <main className="narrow" lang={lang}>
+      <LangToggle path="/angel-tree" lang={lang} />
+      <p className="eyebrow">{t.eyebrow}</p>
+      <h1 className="h-page">{t.title}</h1>
+      <p className="lede small">{t.lede}</p>
+      <TagForm lang={lang} />
       <p className="note">
-        Need Angel Tree help for your own family? <Link href="/request">Request help here.</Link>
+        {t.needHelp} <Link href={lang === 'es' ? '/angel-tree/apply?lang=es' : '/angel-tree/apply'}>{t.needHelpLink}</Link>
       </p>
     </main>
   );
