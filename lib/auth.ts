@@ -2,7 +2,7 @@ import 'server-only';
 import { redirect } from 'next/navigation';
 import { createSupabaseServer } from '@/lib/supabase/server';
 
-function allowedEmails(): string[] {
+export function allowedEmails(): string[] {
   return (process.env.ADMIN_EMAILS ?? '')
     .split(',')
     .map((s) => s.trim().toLowerCase())
@@ -21,6 +21,7 @@ export async function requireAdmin() {
 
   if (!user) redirect('/admin/login');
   if (!user.email || !allowedEmails().includes(user.email.toLowerCase())) {
+    console.warn(`admin denied for ${user.email}; ADMIN_EMAILS has ${allowedEmails().length} address(es)`);
     redirect('/admin/login?denied=1');
   }
   return user;
