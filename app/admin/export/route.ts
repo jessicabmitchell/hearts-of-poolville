@@ -6,8 +6,10 @@ export const dynamic = 'force-dynamic';
 const COLUMNS = {
   help_requests: ['created_at', 'programs', 'name', 'phone', 'email', 'address', 'household_size', 'details', 'status'],
   tag_pickups: ['created_at', 'name', 'tag_numbers', 'phone', 'email', 'notes', 'status'],
+  help_offers: ['created_at', 'name', 'phone', 'email', 'help_with', 'other', 'language', 'status'],
   angel_tree_applications: [
     'created_at',
+    'family_id',
     'for_self',
     'name',
     'phone',

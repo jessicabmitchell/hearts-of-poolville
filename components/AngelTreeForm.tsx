@@ -3,10 +3,13 @@
 import Link from 'next/link';
 import { useActionState, useState } from 'react';
 import { submitAngelTree } from '@/app/actions';
-import { dict, type Lang } from '@/lib/i18n';
+import { dict, type Dict, type Lang } from '@/lib/i18n';
 import type { FormState } from '@/lib/types';
 
 const initial: FormState = { status: 'idle' };
+
+/** Most children one form can hold. Keep in step with MAX_CHILDREN in app/actions.ts. */
+const MAX_CHILDREN = 10;
 
 type FieldProps = {
   id: string;
@@ -34,43 +37,128 @@ function Field({ id, label, value, optional, required, long, type = 'text', auto
   );
 }
 
+/** One child's questions. Every field name starts with `c<key>_` so the server can tell children apart. */
+function ChildFields({
+  childKey,
+  number,
+  str,
+  t,
+  opt,
+  onRemove,
+}: {
+  childKey: string;
+  number: number;
+  str: (key: string) => string;
+  t: Dict['angelApp'];
+  opt: string;
+  onRemove?: () => void;
+}) {
+  const f = (name: string) => `c${childKey}_${name}`;
+  const [bedding, setBedding] = useState(str(f('bedding')));
+
+  return (
+    <div className="form child">
+      <div className="child-head">
+        <h2 className="h-sm">
+          {t.childHeading} {number}
+        </h2>
+        {onRemove && (
+          <button className="btn ghost small" type="button" onClick={onRemove}>
+            {t.removeChild}
+          </button>
+        )}
+      </div>
+
+      <div className="row2">
+        <Field id={f('name')} label={t.childName} value={str(f('name'))} required />
+        <Field id={f('age')} label={t.age} value={str(f('age'))} required />
+      </div>
+
+      <fieldset>
+        <legend>
+          {t.gender} <span className="hint">{opt}</span>
+        </legend>
+        <label className="check">
+          <input type="radio" name={f('gender')} value="male" defaultChecked={str(f('gender')) === 'male'} />
+          <span>{t.male}</span>
+        </label>
+        <label className="check">
+          <input type="radio" name={f('gender')} value="female" defaultChecked={str(f('gender')) === 'female'} />
+          <span>{t.female}</span>
+        </label>
+      </fieldset>
+
+      <div className="row2">
+        <Field id={f('shirt')} label={t.shirt} value={str(f('shirt'))} optional={opt} />
+        <Field id={f('jeans')} label={t.jeans} value={str(f('jeans'))} optional={opt} />
+      </div>
+      <div className="row2">
+        <Field id={f('shoe')} label={t.shoe} value={str(f('shoe'))} optional={opt} />
+        <Field id={f('coat')} label={t.coat} value={str(f('coat'))} optional={opt} />
+      </div>
+
+      <fieldset>
+        <legend>
+          {t.bedding} <span className="hint">{opt}</span>
+        </legend>
+        {(Object.keys(t.beddingOptions) as (keyof typeof t.beddingOptions)[]).map((size) => (
+          <label key={size} className="check">
+            <input
+              type="radio"
+              name={f('bedding')}
+              value={size}
+              defaultChecked={bedding === size}
+              onChange={() => setBedding(size)}
+            />
+            <span>{t.beddingOptions[size]}</span>
+          </label>
+        ))}
+        <label className="check">
+          <input
+            type="radio"
+            name={f('bedding')}
+            value="other"
+            defaultChecked={bedding === 'other'}
+            onChange={() => setBedding('other')}
+          />
+          <span>{t.other}</span>
+        </label>
+      </fieldset>
+      {bedding === 'other' && <Field id={f('bedding_other')} label={t.otherBedding} value={str(f('bedding_other'))} />}
+
+      <Field id={f('interests')} label={t.interests} value={str(f('interests'))} optional={opt} long />
+      <Field id={f('color')} label={t.color} value={str(f('color'))} optional={opt} />
+      <Field id={f('wishes')} label={t.wishes} value={str(f('wishes'))} optional={opt} long />
+    </div>
+  );
+}
+
 export default function AngelTreeForm({ lang }: { lang: Lang }) {
   const [state, action, pending] = useActionState(submitAngelTree, initial);
-  // Set to the result of a submission once the person chooses to sign up another child.
-  const [againFrom, setAgainFrom] = useState<FormState | null>(null);
   const v = state.values ?? {};
   const str = (key: string) => (typeof v[key] === 'string' ? (v[key] as string) : '');
   const [forWho, setForWho] = useState(str('for_who'));
   const [pickup, setPickup] = useState(str('pickup'));
-  const [bedding, setBedding] = useState(str('bedding'));
+  const [childKeys, setChildKeys] = useState<string[]>(['0']);
+  const [nextKey, setNextKey] = useState(1);
   const c = dict(lang).common;
   const t = dict(lang).angelApp;
   const opt = c.optional;
 
-  if (state.status === 'ok' && againFrom !== state) {
+  if (state.status === 'ok') {
+    const names = Array.isArray(v.child_names) ? v.child_names : [];
     return (
       <div className="panel">
-        <h2 className="h-sm">
-          {t.thanks} {state.message}.
-        </h2>
+        <h2 className="h-sm">{t.thanks}</h2>
+        {names.length > 0 && (
+          <p>
+            {t.thanksFor} <strong>{names.join(', ')}</strong>
+          </p>
+        )}
         <p>{t.thanksBody}</p>
-        <div className="actions">
-          <button
-            className="btn primary"
-            type="button"
-            onClick={() => {
-              setBedding('');
-              setAgainFrom(state);
-              window.scrollTo(0, 0);
-            }}
-          >
-            {t.another}
-          </button>
-          <Link className="btn ghost" href={lang === 'es' ? '/?lang=es' : '/'}>
-            {c.backHome}
-          </Link>
-        </div>
-        <p className="fine">{t.anotherHint}</p>
+        <Link className="btn ghost" href={lang === 'es' ? '/?lang=es' : '/'}>
+          {c.backHome}
+        </Link>
       </div>
     );
   }
@@ -173,69 +261,34 @@ export default function AngelTreeForm({ lang }: { lang: Lang }) {
             />
           )}
 
-          <h2 className="h-sm">{t.childHeading}</h2>
-          <div className="row2">
-            <Field id="child_name" label={t.childName} value={str('child_name')} required />
-            <Field id="age" label={t.age} value={str('age')} required />
-          </div>
-
-          <fieldset>
-            <legend>
-              {t.gender} <span className="hint">{opt}</span>
-            </legend>
-            <label className="check">
-              <input type="radio" name="gender" value="male" defaultChecked={str('gender') === 'male'} />
-              <span>{t.male}</span>
-            </label>
-            <label className="check">
-              <input type="radio" name="gender" value="female" defaultChecked={str('gender') === 'female'} />
-              <span>{t.female}</span>
-            </label>
-          </fieldset>
-
-          <div className="row2">
-            <Field id="shirt" label={t.shirt} value={str('shirt')} optional={opt} />
-            <Field id="jeans" label={t.jeans} value={str('jeans')} optional={opt} />
-          </div>
-          <div className="row2">
-            <Field id="shoe" label={t.shoe} value={str('shoe')} optional={opt} />
-            <Field id="coat" label={t.coat} value={str('coat')} optional={opt} />
-          </div>
-
-          <fieldset>
-            <legend>
-              {t.bedding} <span className="hint">{opt}</span>
-            </legend>
-            {(Object.keys(t.beddingOptions) as (keyof typeof t.beddingOptions)[]).map((size) => (
-              <label key={size} className="check">
-                <input
-                  type="radio"
-                  name="bedding"
-                  value={size}
-                  defaultChecked={bedding === size}
-                  onChange={() => setBedding(size)}
-                />
-                <span>{t.beddingOptions[size]}</span>
-              </label>
-            ))}
-            <label className="check">
-              <input
-                type="radio"
-                name="bedding"
-                value="other"
-                defaultChecked={bedding === 'other'}
-                onChange={() => setBedding('other')}
+          {childKeys.map((key, i) => (
+            <div key={key}>
+              <input type="hidden" name="child_keys" value={key} />
+              <ChildFields
+                childKey={key}
+                number={i + 1}
+                str={str}
+                t={t}
+                opt={opt}
+                onRemove={childKeys.length > 1 ? () => setChildKeys(childKeys.filter((k) => k !== key)) : undefined}
               />
-              <span>{t.other}</span>
-            </label>
-          </fieldset>
-          {bedding === 'other' && (
-            <Field id="bedding_other" label={t.otherBedding} value={str('bedding_other')} />
-          )}
+            </div>
+          ))}
 
-          <Field id="interests" label={t.interests} value={str('interests')} optional={opt} long />
-          <Field id="color" label={t.color} value={str('color')} optional={opt} />
-          <Field id="wishes" label={t.wishes} value={str('wishes')} optional={opt} long />
+          {childKeys.length < MAX_CHILDREN && (
+            <div>
+              <button
+                className="btn ghost"
+                type="button"
+                onClick={() => {
+                  setChildKeys([...childKeys, String(nextKey)]);
+                  setNextKey(nextKey + 1);
+                }}
+              >
+                + {t.addChild}
+              </button>
+            </div>
+          )}
 
           {state.status === 'error' && (
             <p className="error" role="alert">

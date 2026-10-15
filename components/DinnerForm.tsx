@@ -16,7 +16,7 @@ export default function DinnerForm({
 }: {
   holiday: Holiday;
   lang: Lang;
-  pickupDay: string;
+  pickupDay: string | null;
 }) {
   const [state, action, pending] = useActionState(submitDinner, initial);
   const v = state.values ?? {};
@@ -32,7 +32,13 @@ export default function DinnerForm({
       <div className="panel">
         <h2 className="h-sm">{t.thanks}</h2>
         <p>
-          {t.thanksBody} <strong>{pickupDay}</strong>.
+          {pickupDay ? (
+            <>
+              {t.thanksBody} <strong>{pickupDay}</strong>.
+            </>
+          ) : (
+            t.thanksTbd
+          )}
         </p>
         <Link className="btn ghost" href={home}>
           {c.backHome}

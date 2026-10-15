@@ -18,12 +18,14 @@ export type Program = {
 export type Holiday = 'thanksgiving' | 'christmas';
 export const HOLIDAYS: Holiday[] = ['thanksgiving', 'christmas'];
 
-// Pickup days shown on the forms. Update these each year.
-export const ANGEL_TREE_PICKUP_DAYS = ['2026-12-20', '2026-12-21', '2026-12-22'];
-export const DINNER_PICKUP: Record<Holiday, string> = {
+// Pickup days shown on the dinner forms, as 'YYYY-MM-DD'. Use null while the date is not set yet.
+export const DINNER_PICKUP: Record<Holiday, string | null> = {
   thanksgiving: '2026-11-24',
-  christmas: '2026-12-22',
+  christmas: null,
 };
+
+// The Angel Tree tag form, for people who took a tag from the tree. Update `opens` each year.
+export const TAG_FORM: Schedule = { requestsOpen: true, opens: '2026-11-26' };
 
 // Each year, update `opens` and `closes`. Programs without dates are open while requestsOpen is true.
 export const PROGRAMS: Program[] = [
@@ -94,9 +96,12 @@ function today(now: Date): string {
 }
 
 export type OpenState = 'open' | 'not_yet' | 'closed';
+type Schedule = Pick<Program, 'requestsOpen' | 'opens' | 'closes'>;
 
-/** Whether a program takes applications today. Opening and closing days both count as open. */
-export function openState(p: Program, now = new Date()): OpenState {
+/** Whether a form takes submissions today. Opening and closing days both count as open. */
+export function openState(p: Schedule, now = new Date()): OpenState {
+  // `OPEN_ALL_FORMS=1 npm run dev` opens every form on your own computer, to preview them early.
+  if (process.env.NODE_ENV === 'development' && process.env.OPEN_ALL_FORMS === '1') return 'open';
   if (!p.requestsOpen) return 'closed';
   const day = today(now);
   if (p.opens && day < p.opens) return 'not_yet';
@@ -104,6 +109,6 @@ export function openState(p: Program, now = new Date()): OpenState {
   return 'open';
 }
 
-export function isOpen(p: Program, now = new Date()): boolean {
+export function isOpen(p: Schedule, now = new Date()): boolean {
   return openState(p, now) === 'open';
 }

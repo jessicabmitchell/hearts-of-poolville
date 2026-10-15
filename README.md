@@ -5,8 +5,10 @@ Website for Hearts of Poolville, a community charity in Poolville, Texas.
 - **Home page** with the year-round programs
 - **/request** form for families asking for help (Thanksgiving, Christmas, Angel Tree, Easter, back-to-school)
 - **/thanksgiving** and **/christmas** dinner applications (for your own family or another family)
-- **/angel-tree/apply** Angel Tree sign-up for a child (one form per child)
-- **/angel-tree** form for people who took a tag from the tree
+- **/angel-tree/apply** Angel Tree sign-up (one form per family, any number of children)
+- **/help** sign-up for people who want to donate or help (the home page's "I want to help" buttons)
+- **/angel-tree** form for people who took a tag from the tree. It opens on the date set as
+  `TAG_FORM` in `lib/programs.ts` (Thanksgiving Day).
 - Every form has an English/Español switch. Add `?lang=es` to a link (for example
   `/thanksgiving?lang=es`) to open it in Spanish.
 - **/admin** private page for volunteers: see submissions, mark them done, download CSV
@@ -63,7 +65,7 @@ If you would rather use a GitHub Actions schedule, point it at the same route wi
   the dates. Easter and back-to-school have no dates, so `requestsOpen` alone opens and closes
   them. Closed programs lose the "Requests open" tag on the home page within an hour.
 - **`lib/site.ts`** has your email and Facebook link. Fill them in and a Contact section appears.
-- **`lib/programs.ts`** also has the Angel Tree, Thanksgiving, and Christmas pickup dates. Update them each year.
+- **`lib/programs.ts`** also has the Thanksgiving and Christmas pickup dates. Update them each year.
 - **`lib/i18n.ts`** has every word on the forms, in English and Spanish. Edit both languages
   together, and have a native Spanish speaker check the Spanish.
 - **`components/RequestForm.tsx`, `components/DinnerForm.tsx`, `components/AngelTreeForm.tsx`, and `components/TagForm.tsx`**

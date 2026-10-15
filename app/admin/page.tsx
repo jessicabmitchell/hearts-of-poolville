@@ -2,15 +2,18 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import AutoRefresh from '@/components/AutoRefresh';
 import { requireAdmin } from '@/lib/auth';
+import { dict } from '@/lib/i18n';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { PROGRAMS, programName } from '@/lib/programs';
 import {
+  HELP_STATUSES,
   REQUEST_STATUSES,
   TAG_STATUSES,
   type HelpRequest,
   type TagPickup,
   type DinnerApplication,
   type AngelTreeApplication,
+  type HelpOffer,
 } from '@/lib/types';
 import { signOut, updateStatus } from './actions';
 
@@ -23,6 +26,7 @@ const dateFmt = new Intl.DateTimeFormat('en-US', {
   timeStyle: 'short',
 });
 const label = (s: string) => s.replace('_', ' ');
+const HELP_LABELS = dict('en').help.options;
 
 function StatusForm({
   table,
@@ -30,7 +34,7 @@ function StatusForm({
   status,
   options,
 }: {
-  table: 'help_requests' | 'tag_pickups' | 'dinner_applications' | 'angel_tree_applications';
+  table: 'help_requests' | 'tag_pickups' | 'dinner_applications' | 'angel_tree_applications' | 'help_offers';
   id: string;
   status: string;
   options: readonly string[];
@@ -61,26 +65,32 @@ export default async function AdminPage({
   const user = await requireAdmin();
   const { view: viewParam, program = '' } = await searchParams;
   const view =
-    viewParam === 'tags' || viewParam === 'angels' || viewParam === 'thanksgiving' || viewParam === 'christmas'
+    viewParam === 'tags' ||
+    viewParam === 'angels' ||
+    viewParam === 'thanksgiving' ||
+    viewParam === 'christmas' ||
+    viewParam === 'helpers'
       ? viewParam
       : 'requests';
   const csvHref = {
     requests: '/admin/export?table=help_requests',
     tags: '/admin/export?table=tag_pickups',
     angels: '/admin/export?table=angel_tree_applications',
+    helpers: '/admin/export?table=help_offers',
     thanksgiving: '/admin/export?table=dinner_applications&holiday=thanksgiving',
     christmas: '/admin/export?table=dinner_applications&holiday=christmas',
   }[view];
 
   const db = createAdminClient();
-  const [reqRes, tagRes, tgRes, angelRes] = await Promise.all([
+  const [reqRes, tagRes, tgRes, angelRes, helpRes] = await Promise.all([
     db.from('help_requests').select('*').order('created_at', { ascending: false }).limit(2000),
     db.from('tag_pickups').select('*').order('created_at', { ascending: false }).limit(2000),
     db.from('dinner_applications').select('*').order('created_at', { ascending: false }).limit(2000),
     db.from('angel_tree_applications').select('*').order('created_at', { ascending: false }).limit(2000),
+    db.from('help_offers').select('*').order('created_at', { ascending: false }).limit(2000),
   ]);
 
-  const loadError = reqRes.error ?? tagRes.error ?? tgRes.error ?? angelRes.error;
+  const loadError = reqRes.error ?? tagRes.error ?? tgRes.error ?? angelRes.error ?? helpRes.error;
   if (loadError) {
     console.error('admin load failed', loadError);
     return (
@@ -96,6 +106,9 @@ export default async function AdminPage({
   const dinnersFor = (h: string) => allDinners.filter((d) => d.holiday === h);
   const dinners = dinnersFor(view);
   const angels = (angelRes.data ?? []) as AngelTreeApplication[];
+  const helpers = (helpRes.data ?? []) as HelpOffer[];
+  const familySize = new Map<string, number>();
+  for (const a of angels) if (a.family_id) familySize.set(a.family_id, (familySize.get(a.family_id) ?? 0) + 1);
   const shown = program ? requests.filter((r) => r.programs.includes(program)) : requests;
   const newCount = requests.filter((r) => r.status === 'new').length;
 
@@ -129,6 +142,9 @@ export default async function AdminPage({
             {programName(h)} ({dinnersFor(h).length}, {dinnersFor(h).filter((d) => d.status === 'new').length} new)
           </Link>
         ))}
+        <Link className="chip" href="/admin?view=helpers" aria-current={view === 'helpers' ? 'page' : undefined}>
+          Helpers ({helpers.length}, {helpers.filter((h) => h.status === 'new').length} new)
+        </Link>
         <a className="chip" href={csvHref}>
           Download CSV
         </a>
@@ -247,6 +263,49 @@ export default async function AdminPage({
             </table>
           )}
         </div>
+      ) : view === 'helpers' ? (
+        <div className="tablewrap">
+          {helpers.length === 0 ? (
+            <p className="empty">No one has signed up to help yet.</p>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Received</th>
+                  <th>Name</th>
+                  <th>Contact</th>
+                  <th>Wants to help with</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {helpers.map((h) => (
+                  <tr key={h.id}>
+                    <td className="nowrap">
+                      {dateFmt.format(new Date(h.created_at))}
+                      {h.language === 'es' && (
+                        <>
+                          {' '}
+                          <span className="open">Spanish</span>
+                        </>
+                      )}
+                    </td>
+                    <td>{h.name}</td>
+                    <td className="long">{[h.phone, h.email].filter(Boolean).join('\n')}</td>
+                    <td className="long">
+                      {h.help_with
+                        .map((o) => (o === 'other' ? `Other: ${h.other ?? ''}` : HELP_LABELS[o]))
+                        .join('\n')}
+                    </td>
+                    <td>
+                      <StatusForm table="help_offers" id={h.id} status={h.status} options={HELP_STATUSES} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       ) : view === 'angels' ? (
         <div className="tablewrap">
           {angels.length === 0 ? (
@@ -289,6 +348,12 @@ export default async function AdminPage({
                         <strong>{a.child_name}</strong>
                         <br />
                         {[a.age, a.gender].filter(Boolean).join(', ')}
+                        {a.family_id && (familySize.get(a.family_id) ?? 0) > 1 && (
+                          <>
+                            <br />
+                            <span className="fine">{familySize.get(a.family_id)} kids on this form</span>
+                          </>
+                        )}
                       </td>
                       <td className="long">
                         {lines([

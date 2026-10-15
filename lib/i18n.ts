@@ -17,13 +17,6 @@ export function formatDay(isoDate: string, lang: Lang): string {
   }).format(new Date(`${isoDate}T12:00:00Z`));
 }
 
-/** Turn several dates into "December 20, December 21, or December 22". */
-export function formatDayChoices(isoDates: string[], lang: Lang): string {
-  return new Intl.ListFormat(lang === 'es' ? 'es-US' : 'en-US', { type: 'disjunction' }).format(
-    isoDates.map((d) => formatDay(d, lang)),
-  );
-}
-
 const en = {
   switchTo: 'Español',
   switchLabel: 'Ver en español',
@@ -57,6 +50,8 @@ const en = {
     parentEmail: "The parent or guardian's email address does not look right.",
     childName: "Please enter the child's first name or initials.",
     childAge: "Please enter the child's age.",
+    helpPick: 'Please choose at least one way to help.',
+    helpOther: 'Please tell us what else you would like to help with.',
     closed: 'This form is not taking applications right now.',
   },
   request: {
@@ -90,6 +85,25 @@ const en = {
     thanksBody: 'We have your name down for it. Neighbors like you make this possible.',
     needHelp: 'Need Angel Tree help for your own family?',
     needHelpLink: 'Sign up for the Angel Tree here.',
+    notYet: 'The Angel Tree tag form opens',
+  },
+  help: {
+    eyebrow: 'Get involved',
+    title: 'I want to help',
+    lede: "Tell us how you'd like to help, and a volunteer will reach out.",
+    legend: 'What would you like to help with?',
+    options: {
+      christmas: 'Christmas dinner donations',
+      thanksgiving: 'Thanksgiving dinner donations',
+      angel_tree: 'Angel Tree donations',
+      easter: 'Easter basket donations',
+      back_to_school: 'Back-to-school donations',
+      other: 'Other',
+    },
+    otherWhat: 'What else would you like to help with?',
+    submit: 'Sign up to help',
+    thanks: 'Thank you for offering to help!',
+    thanksBody: 'A volunteer will reach out soon.',
   },
   holidays: {
     thanksgiving: {
@@ -105,7 +119,7 @@ const en = {
       title: 'Christmas Dinner Application',
       deadline: 'Applications for Christmas dinner will close',
       pickup: 'Pickup for Christmas dinner will be',
-      angelTree: 'If you have children in the Angel Tree as well, pickup for their presents will also be',
+      angelTree: 'If you have children in the Angel Tree as well, you will pick up their presents on the same day.',
       closed: 'We are not taking Christmas dinner applications right now. Please check back soon.',
     },
   },
@@ -130,14 +144,15 @@ const en = {
     submit: 'Send application',
     thanks: 'Thank you. We got your application.',
     thanksBody: 'Pickup is',
+    pickupTbd: 'The pickup date is not set yet. We will contact you as soon as we know.',
+    thanksTbd: 'We will contact you about pickup as soon as the date is set.',
   },
   angelApp: {
     eyebrow: 'Angel Tree',
     title: 'Angel Tree Application',
     deadline: 'The Angel Tree applications will close on',
-    pickup: 'Present pickup will be',
-    pickupNote: 'We will let you know at least a week in advance.',
-    oneChild: 'Please submit one form per child. Thank you.',
+    pickupTbd: 'Present pickup dates are not set yet. We will contact you as soon as we know.',
+    oneChild: 'Please submit one form per family, with all of your children on it. Thank you.',
     closed: 'We are not taking Angel Tree applications right now. Please check back soon.',
     forWho: "Are you filling this out for someone else's child?",
     yes: 'Yes',
@@ -152,7 +167,9 @@ const en = {
     parentPhone: 'Phone',
     parentEmail: 'Email',
     address: 'Address',
-    childHeading: 'Angel (child) information',
+    childHeading: 'Angel (child)',
+    addChild: 'Add another child',
+    removeChild: 'Remove this child',
     childName: 'First name / initials',
     age: 'Age',
     gender: 'Gender',
@@ -170,10 +187,9 @@ const en = {
     color: 'Favorite color',
     wishes: 'A couple of wish items',
     submit: 'Send application',
-    thanks: 'Thank you. We got the application for',
-    thanksBody: 'We will let you know the pickup day at least a week in advance.',
-    another: 'Sign up another child',
-    anotherHint: 'Your contact information will already be filled in.',
+    thanks: 'Thank you. We got your application.',
+    thanksFor: 'Signed up:',
+    thanksBody: 'We will contact you about present pickup as soon as the dates are set.',
   },
 };
 
@@ -212,6 +228,8 @@ const es: Dict = {
     parentEmail: 'El correo electrónico del padre, la madre o el tutor no parece correcto.',
     childName: 'Por favor, escriba el primer nombre o las iniciales del niño.',
     childAge: 'Por favor, escriba la edad del niño.',
+    helpPick: 'Por favor, elija al menos una forma de ayudar.',
+    helpOther: 'Por favor, díganos con qué más le gustaría ayudar.',
     closed: 'Este formulario no está recibiendo solicitudes en este momento.',
   },
   request: {
@@ -245,6 +263,25 @@ const es: Dict = {
     thanksBody: 'Ya tenemos su nombre anotado. Vecinos como usted hacen esto posible.',
     needHelp: '¿Necesita ayuda del Árbol de Ángeles para su propia familia?',
     needHelpLink: 'Inscríbase en el Árbol de Ángeles aquí.',
+    notYet: 'El formulario de etiquetas del Árbol de Ángeles abre el',
+  },
+  help: {
+    eyebrow: 'Participe',
+    title: 'Quiero ayudar',
+    lede: 'Díganos cómo le gustaría ayudar y un voluntario se comunicará con usted.',
+    legend: '¿Con qué le gustaría ayudar?',
+    options: {
+      christmas: 'Donaciones para la cena de Navidad',
+      thanksgiving: 'Donaciones para la cena de Acción de Gracias',
+      angel_tree: 'Donaciones para el Árbol de Ángeles',
+      easter: 'Donaciones para las canastas de Pascua',
+      back_to_school: 'Donaciones para útiles escolares',
+      other: 'Otro',
+    },
+    otherWhat: '¿Con qué más le gustaría ayudar?',
+    submit: 'Inscribirme para ayudar',
+    thanks: '¡Gracias por ofrecer su ayuda!',
+    thanksBody: 'Un voluntario se comunicará con usted pronto.',
   },
   holidays: {
     thanksgiving: {
@@ -261,7 +298,7 @@ const es: Dict = {
       title: 'Solicitud de cena de Navidad',
       deadline: 'Las solicitudes para la cena de Navidad cierran el',
       pickup: 'La cena de Navidad se recogerá el',
-      angelTree: 'Si también tiene hijos en el Árbol de Ángeles, sus regalos también se recogerán el',
+      angelTree: 'Si también tiene hijos en el Árbol de Ángeles, recogerá sus regalos el mismo día.',
       closed:
         'No estamos recibiendo solicitudes para la cena de Navidad en este momento. Por favor, vuelva a consultar pronto.',
     },
@@ -287,14 +324,15 @@ const es: Dict = {
     submit: 'Enviar solicitud',
     thanks: 'Gracias. Recibimos su solicitud.',
     thanksBody: 'La cena se recoge el',
+    pickupTbd: 'La fecha para recoger aún no está definida. Nos comunicaremos con usted en cuanto la sepamos.',
+    thanksTbd: 'Nos comunicaremos con usted sobre la recogida en cuanto se defina la fecha.',
   },
   angelApp: {
     eyebrow: 'Árbol de Ángeles',
     title: 'Solicitud para el Árbol de Ángeles',
     deadline: 'Las solicitudes para el Árbol de Ángeles cierran el',
-    pickup: 'Los regalos se recogerán el',
-    pickupNote: 'Le avisaremos con al menos una semana de anticipación.',
-    oneChild: 'Por favor, llene un formulario por cada niño. Gracias.',
+    pickupTbd: 'Las fechas para recoger los regalos aún no están definidas. Nos comunicaremos con usted en cuanto las sepamos.',
+    oneChild: 'Por favor, llene un solo formulario por familia, con todos sus niños. Gracias.',
     closed: 'No estamos recibiendo solicitudes para el Árbol de Ángeles en este momento. Por favor, vuelva a consultar pronto.',
     forWho: '¿Está llenando esto para el hijo de otra persona?',
     yes: 'Sí',
@@ -309,7 +347,9 @@ const es: Dict = {
     parentPhone: 'Teléfono',
     parentEmail: 'Correo electrónico',
     address: 'Dirección',
-    childHeading: 'Información del ángel (niño)',
+    childHeading: 'Ángel (niño)',
+    addChild: 'Agregar otro niño',
+    removeChild: 'Quitar a este niño',
     childName: 'Primer nombre / iniciales',
     age: 'Edad',
     gender: 'Sexo',
@@ -327,10 +367,9 @@ const es: Dict = {
     color: 'Color favorito',
     wishes: 'Un par de cosas que desea',
     submit: 'Enviar solicitud',
-    thanks: 'Gracias. Recibimos la solicitud de',
-    thanksBody: 'Le avisaremos el día de recogida con al menos una semana de anticipación.',
-    another: 'Inscribir a otro niño',
-    anotherHint: 'Su información de contacto ya estará escrita.',
+    thanks: 'Gracias. Recibimos su solicitud.',
+    thanksFor: 'Inscritos:',
+    thanksBody: 'Nos comunicaremos con usted sobre la recogida de los regalos en cuanto se definan las fechas.',
   },
 };
 

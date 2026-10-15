@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import WaterTower from '@/components/WaterTower';
-import { PROGRAMS, isOpen } from '@/lib/programs';
+import { PROGRAMS, TAG_FORM, isOpen } from '@/lib/programs';
 import { SITE } from '@/lib/site';
 
 // Rebuild hourly so the "Requests open" tags follow the open and close dates.
@@ -21,7 +21,7 @@ export default function Home() {
             back-to-school supplies.
           </p>
           <div className="actions">
-            <Link className="btn primary" href="/#get-involved">
+            <Link className="btn primary" href="/help">
               I want to help
             </Link>
             <Link className="btn ghost" href="/request">
@@ -71,12 +71,17 @@ export default function Home() {
           <div className="panel">
             <h3>I want to help</h3>
             <p>
-              Took a tag from the Angel Tree? Let us know which one so we can keep track.
-              {hasContact ? ' To volunteer, get in touch below.' : ''}
+              Donate to a holiday dinner, the Angel Tree, Easter baskets, or back-to-school supplies. Tell us
+              what you&apos;d like to help with and a volunteer will reach out.
             </p>
-            <Link className="btn primary" href="/angel-tree">
-              Angel Tree tag form
+            <Link className="btn primary" href="/help">
+              Sign up to help
             </Link>
+            {isOpen(TAG_FORM) && (
+              <p className="fine">
+                Took a tag from the Angel Tree? <Link href="/angel-tree">Tell us which one.</Link>
+              </p>
+            )}
           </div>
         </div>
       </section>

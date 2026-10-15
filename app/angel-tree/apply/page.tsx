@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import AngelTreeForm from '@/components/AngelTreeForm';
 import LangToggle from '@/components/LangToggle';
-import { dict, formatDay, formatDayChoices, toLang } from '@/lib/i18n';
-import { ANGEL_TREE_PICKUP_DAYS, getProgram, openState } from '@/lib/programs';
+import { dict, formatDay, toLang } from '@/lib/i18n';
+import { getProgram, openState } from '@/lib/programs';
 
 export const metadata: Metadata = { title: 'Angel Tree application' };
 
@@ -23,7 +23,7 @@ export default async function AngelTreeApplyPage({ searchParams }: { searchParam
             {t.deadline} <strong>{formatDay(program.closes, lang)}</strong>.{' '}
           </>
         )}
-        {t.pickup} <strong>{formatDayChoices(ANGEL_TREE_PICKUP_DAYS, lang)}</strong>. {t.pickupNote}
+        {t.pickupTbd}
       </p>
       <p className="lede small">
         <strong>{t.oneChild}</strong>

@@ -470,6 +470,23 @@ p.check {
   margin: 8px 0 0;
 }
 
+.child {
+  border-top: 1.5px solid var(--line);
+  padding-top: 24px;
+}
+
+.child-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.child-head h2.h-sm {
+  margin: 0;
+}
+
 .request-other {
   margin-top: 40px;
 }

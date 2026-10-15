@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { requireAdmin } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createSupabaseServer } from '@/lib/supabase/server';
-import { REQUEST_STATUSES, TAG_STATUSES, type FormState } from '@/lib/types';
+import { HELP_STATUSES, REQUEST_STATUSES, TAG_STATUSES, type FormState } from '@/lib/types';
 
 export async function signIn(_prev: FormState, formData: FormData): Promise<FormState> {
   const email = String(formData.get('email') ?? '').trim();
@@ -35,7 +35,8 @@ export async function updateStatus(formData: FormData) {
   const valid =
     ((table === 'help_requests' || table === 'dinner_applications' || table === 'angel_tree_applications') &&
       (REQUEST_STATUSES as readonly string[]).includes(status)) ||
-    (table === 'tag_pickups' && (TAG_STATUSES as readonly string[]).includes(status));
+    (table === 'tag_pickups' && (TAG_STATUSES as readonly string[]).includes(status)) ||
+    (table === 'help_offers' && (HELP_STATUSES as readonly string[]).includes(status));
   if (!valid || !id) return;
 
   await createAdminClient().from(table).update({ status }).eq('id', id);

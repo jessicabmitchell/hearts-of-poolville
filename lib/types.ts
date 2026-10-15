@@ -6,6 +6,11 @@ export type FormState = {
 
 export const REQUEST_STATUSES = ['new', 'in_progress', 'fulfilled'] as const;
 export const TAG_STATUSES = ['picked', 'returned'] as const;
+export const HELP_STATUSES = ['new', 'contacted'] as const;
+
+/** Ways to help on the /help form, in the order they appear. */
+export const HELP_OPTIONS = ['christmas', 'thanksgiving', 'angel_tree', 'easter', 'back_to_school', 'other'] as const;
+export type HelpOption = (typeof HELP_OPTIONS)[number];
 
 export type HelpRequest = {
   id: string;
@@ -52,6 +57,7 @@ export type DinnerApplication = {
 export type AngelTreeApplication = {
   id: string;
   created_at: string;
+  family_id: string | null;
   for_self: boolean;
   name: string;
   phone: string | null;
@@ -74,4 +80,16 @@ export type AngelTreeApplication = {
   wishes: string | null;
   language: 'en' | 'es';
   status: (typeof REQUEST_STATUSES)[number];
+};
+
+export type HelpOffer = {
+  id: string;
+  created_at: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  help_with: HelpOption[];
+  other: string | null;
+  language: 'en' | 'es';
+  status: (typeof HELP_STATUSES)[number];
 };

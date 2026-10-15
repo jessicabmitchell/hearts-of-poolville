@@ -8,7 +8,9 @@ export default function DinnerPage({ holiday, lang }: { holiday: Holiday; lang: 
   const h = dict(lang).holidays[holiday];
   const program = getProgram(holiday);
   const state = openState(program);
-  const pickupDay = formatDay(DINNER_PICKUP[holiday], lang);
+  const pickup = DINNER_PICKUP[holiday];
+  const pickupDay = pickup ? formatDay(pickup, lang) : null;
+  const d = dict(lang).dinner;
 
   return (
     <main className="narrow" lang={lang}>
@@ -21,8 +23,14 @@ export default function DinnerPage({ holiday, lang }: { holiday: Holiday; lang: 
             {h.deadline} <strong>{formatDay(program.closes, lang)}</strong>.{' '}
           </>
         )}
-        {h.pickup} <strong>{pickupDay}</strong>.
-        {h.angelTree && ` ${h.angelTree} ${pickupDay}.`}
+        {pickupDay ? (
+          <>
+            {h.pickup} <strong>{pickupDay}</strong>.
+          </>
+        ) : (
+          d.pickupTbd
+        )}
+        {h.angelTree && ` ${h.angelTree}`}
       </p>
       {state === 'open' ? (
         <DinnerForm holiday={holiday} lang={lang} pickupDay={pickupDay} />
