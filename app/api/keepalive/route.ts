@@ -12,8 +12,8 @@ export async function GET(request: Request) {
 
   // A cheap read: counts rows without returning any of them.
   const { error } = await createAdminClient()
-    .from('help_requests')
-    .select('id', { head: true, count: 'exact' });
+    .from('forms')
+    .select('slug', { head: true, count: 'exact' });
 
   if (error) {
     console.error('keepalive failed', error);

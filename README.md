@@ -3,18 +3,17 @@
 Website for Hearts of Poolville, a community charity in Poolville, Texas.
 
 - **Home page** with the year-round programs
-- **/request** form for families asking for help (Thanksgiving, Christmas, Angel Tree, Easter, back-to-school)
-- **/thanksgiving** and **/christmas** dinner applications (for your own family or another family)
-- **/angel-tree/apply** Angel Tree sign-up (one form per family, any number of children)
-- **/help** sign-up for people who want to donate or help (the home page's "I want to help" buttons)
-- **/angel-tree** form for people who took a tag from the tree. It opens on the date set as
-  `TAG_FORM` in `lib/programs.ts` (Thanksgiving Day).
+- **/request** lists the forms families can fill out right now, and the ones opening soon
+- **/thanksgiving**, **/christmas**, **/angel-tree/apply**, **/help**, **/angel-tree** (tags), and
+  any form added on the admin page at **/forms/<name>**
 - Every form has an English/Español switch. Add `?lang=es` to a link (for example
   `/thanksgiving?lang=es`) to open it in Spanish.
-- **/admin** private page for volunteers: see submissions, mark them done, download CSV
+- **/admin** private page for volunteers, with a side menu:
+  - **Results**: each form's responses, with search, statuses, and a spreadsheet download
+  - **Edit forms**: change any form's dates, on/off switch, wording (English and Spanish), and
+    questions; add new forms; and bring back an earlier version if something goes wrong
 
-Built with Next.js 15 and Supabase. Nothing a visitor submits is readable from the browser. All
-reads and writes happen on the server.
+Forms are saved in Supabase, so editing them on the admin page needs no code changes.
 
 ## Set up
 
@@ -59,19 +58,15 @@ If you would rather use a GitHub Actions schedule, point it at the same route wi
 
 ## Things you will edit
 
-- **`lib/programs.ts`** has the program list. Thanksgiving, Angel Tree, and Christmas open and
-  close on their own using their `opens` and `closes` dates (Poolville time, both days included).
-  Update those dates each year. Set `requestsOpen` to `false` to close a program early no matter
-  the dates. Easter and back-to-school have no dates, so `requestsOpen` alone opens and closes
-  them. Closed programs lose the "Requests open" tag on the home page within an hour.
+- **Forms**: on the admin page, under Edit forms. Each year, update the open and close dates and
+  any pickup dates in the introductions. Have a native Spanish speaker check new Spanish text.
 - **`lib/site.ts`** has your email and Facebook link. Fill them in and a Contact section appears.
-- **`lib/programs.ts`** also has the Thanksgiving and Christmas pickup dates. Update them each year.
-- **`lib/i18n.ts`** has every word on the forms, in English and Spanish. Edit both languages
-  together, and have a native Spanish speaker check the Spanish.
-- **`components/RequestForm.tsx`, `components/DinnerForm.tsx`, `components/AngelTreeForm.tsx`, and `components/TagForm.tsx`**
-  hold the form fields. If your
-  Google Forms ask something this does not, add a column in `supabase/schema.sql` (and run an
-  `alter table` in Supabase), then add the field to the form and to `app/actions.ts`.
+- **`lib/programs.ts`** has the programs listed on the home page and which form each one uses.
+- **`lib/i18n.ts`** has the words around the forms (buttons, error messages) in both languages.
+- **`lib/forms/defaults.ts`** has the forms the site started with. They are only used the first
+  time, before a form is saved in Supabase.
+- To preview every form before it opens, run `OPEN_ALL_FORMS=1 npm run dev`. This only works on
+  your own computer.
 
 ## About the data
 

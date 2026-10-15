@@ -1,13 +1,21 @@
 import Link from 'next/link';
 import WaterTower from '@/components/WaterTower';
-import { PROGRAMS, TAG_FORM, isOpen } from '@/lib/programs';
+import { openState } from '@/lib/forms/logic';
+import { getAllForms } from '@/lib/forms/store';
+import { PROGRAMS } from '@/lib/programs';
 import { SITE } from '@/lib/site';
 
-// Rebuild hourly so the "Requests open" tags follow the open and close dates.
+// Rebuild hourly so the "Requests open" tags follow the forms' dates. Saving a form on the admin
+// page rebuilds it right away.
 export const revalidate = 3600;
 
-export default function Home() {
+export default async function Home() {
   const hasContact = Boolean(SITE.email || SITE.facebookUrl);
+  const forms = await getAllForms();
+  const isOpen = (slug: string) => {
+    const f = forms.find((x) => x.slug === slug);
+    return f ? openState(f.config) === 'open' : false;
+  };
 
   return (
     <main>
@@ -44,7 +52,7 @@ export default function Home() {
               <div>
                 <h3>
                   {p.name}
-                  {isOpen(p) && <span className="open">Requests open</span>}
+                  {isOpen(p.formSlug) && <span className="open">Requests open</span>}
                 </h3>
                 <p>{p.blurb}</p>
               </div>
@@ -77,7 +85,7 @@ export default function Home() {
             <Link className="btn primary" href="/help">
               Sign up to help
             </Link>
-            {isOpen(TAG_FORM) && (
+            {isOpen('tags') && (
               <p className="fine">
                 Took a tag from the Angel Tree? <Link href="/angel-tree">Tell us which one.</Link>
               </p>
