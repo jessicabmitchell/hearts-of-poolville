@@ -38,6 +38,12 @@ const base = (more: Partial<FormConfig> & Pick<FormConfig, 'name' | 'title' | 's
     'We are not taking applications right now. Please check back soon.',
     'No estamos recibiendo solicitudes en este momento. Por favor, vuelva a consultar pronto.',
   ),
+  capacity: null,
+  capacityUnit: 'responses',
+  fullMessage: t(
+    'We have all the sign-ups we can take this year. Thank you for your interest.',
+    'Ya tenemos todas las inscripciones que podemos recibir este año. Gracias por su interés.',
+  ),
   submitLabel: t('Send application', 'Enviar solicitud'),
   thanksTitle: t('Thank you. We got your application.', 'Gracias. Recibimos su solicitud.'),
   thanksBody: emptyT(),
@@ -163,6 +169,11 @@ export const DEFAULT_FORMS: Record<string, FormConfig> = {
     ),
     opens: '2026-10-17',
     closes: '2026-11-21',
+    capacityUnit: 'angels',
+    fullMessage: t(
+      'The Angel Tree is full for this year. Thank you for your interest.',
+      'El Árbol de Ángeles está lleno este año. Gracias por su interés.',
+    ),
     onRequestPage: true,
     thanksBody: t(
       'We will contact you about present pickup as soon as the dates are set.',

@@ -1,8 +1,8 @@
 'use server';
 
 import { dict, toLang } from '@/lib/i18n';
-import { openState, readAnswers, type RawValues } from '@/lib/forms/logic';
-import { addResponse, getForm } from '@/lib/forms/store';
+import { openState, readAnswers, tx, type RawValues } from '@/lib/forms/logic';
+import { addResponse, getFilled, getForm } from '@/lib/forms/store';
 import type { FormState } from '@/lib/types';
 
 /** Everything that was sent, so the form can be filled back in if there is a problem. */
@@ -28,7 +28,13 @@ export async function submitForm(_prev: FormState, formData: FormData): Promise<
   const values = rawValues(formData);
 
   const form = await getForm(slug);
-  if (!form || openState(form.config) !== 'open') return { status: 'error', message: err.closed, values };
+  if (!form) return { status: 'error', message: err.closed, values };
+  // A family that sends several children at once is let through even if it goes past the limit;
+  // the form closes for everyone after that.
+  const filled = form.config.capacity ? await getFilled(slug, form.config).catch(() => 0) : 0;
+  const state = openState(form.config, undefined, filled);
+  if (state === 'full') return { status: 'error', message: tx(form.config.fullMessage, lang) || err.full, values };
+  if (state !== 'open') return { status: 'error', message: err.closed, values };
 
   const { answers, error } = readAnswers(
     form.config,

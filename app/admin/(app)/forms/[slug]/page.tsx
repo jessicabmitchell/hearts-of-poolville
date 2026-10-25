@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import FormEditor from '@/components/admin/FormEditor';
 import { formPath } from '@/lib/forms/defaults';
-import { getForm, getVersions } from '@/lib/forms/store';
+import { getFilled, getForm, getVersions } from '@/lib/forms/store';
 import { requireAdmin } from '@/lib/auth';
 
 export default async function EditFormPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -9,7 +9,10 @@ export default async function EditFormPage({ params }: { params: Promise<{ slug:
   const { slug } = await params;
   const form = await getForm(slug);
   if (!form || form.config.archived) notFound();
-  const versions = await getVersions(slug);
+  const [versions, filled] = await Promise.all([
+    getVersions(slug),
+    getFilled(slug, form.config).catch(() => 0),
+  ]);
 
   return (
     <FormEditor
@@ -21,6 +24,7 @@ export default async function EditFormPage({ params }: { params: Promise<{ slug:
       updatedAt={form.updatedAt}
       updatedBy={form.updatedBy}
       versions={versions}
+      filled={filled}
     />
   );
 }

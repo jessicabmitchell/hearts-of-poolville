@@ -28,6 +28,7 @@ const en = {
   errors: {
     saveFailed: 'Something went wrong and your information was not saved. Please try again in a minute.',
     closed: 'This form is not taking responses right now.',
+    full: 'This form is full. Thank you for your interest.',
     answer: 'Please answer:',
     contact: 'Please give us a phone number or an email so we can reach you.',
     email: 'that email address does not look right.',
@@ -64,6 +65,7 @@ const es: Dict = {
   errors: {
     saveFailed: 'Algo salió mal y su información no se guardó. Por favor, inténtelo de nuevo en un minuto.',
     closed: 'Este formulario no está recibiendo respuestas en este momento.',
+    full: 'Este formulario está lleno. Gracias por su interés.',
     answer: 'Por favor, responda:',
     contact: 'Por favor, denos un número de teléfono o un correo electrónico para comunicarnos con usted.',
     email: 'ese correo electrónico no parece correcto.',

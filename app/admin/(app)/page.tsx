@@ -2,13 +2,13 @@ import Link from 'next/link';
 import AutoRefresh from '@/components/AutoRefresh';
 import { formPath } from '@/lib/forms/defaults';
 import { openLabel } from '@/lib/forms/status';
-import { getAllForms, getCounts } from '@/lib/forms/store';
+import { getAllForms, getCounts, getFilledForLimited } from '@/lib/forms/store';
 import { requireAdmin } from '@/lib/auth';
 
 export default async function AdminOverview() {
   await requireAdmin();
   const forms = (await getAllForms()).filter((f) => !f.config.archived);
-  const counts = await getCounts(forms);
+  const [counts, filled] = await Promise.all([getCounts(forms), getFilledForLimited(forms)]);
 
   return (
     <>
@@ -18,7 +18,7 @@ export default async function AdminOverview() {
       </div>
       <div className="cards">
         {forms.map((f) => {
-          const status = openLabel(f.config);
+          const status = openLabel(f.config, filled[f.slug]);
           const n = counts[f.slug] ?? { total: 0, fresh: 0 };
           return (
             <div key={f.slug} className="card">

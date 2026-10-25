@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import WaterTower from '@/components/WaterTower';
 import { openState } from '@/lib/forms/logic';
-import { getAllForms } from '@/lib/forms/store';
+import { getAllForms, getFilledForLimited } from '@/lib/forms/store';
 import { PROGRAMS } from '@/lib/programs';
 import { SITE } from '@/lib/site';
 
@@ -12,9 +12,10 @@ export const revalidate = 3600;
 export default async function Home() {
   const hasContact = Boolean(SITE.email || SITE.facebookUrl);
   const forms = await getAllForms();
+  const filled = await getFilledForLimited(forms);
   const isOpen = (slug: string) => {
     const f = forms.find((x) => x.slug === slug);
-    return f ? openState(f.config) === 'open' : false;
+    return f ? openState(f.config, undefined, filled[slug]) === 'open' : false;
   };
 
   return (

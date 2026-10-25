@@ -6,9 +6,13 @@ import type { FormConfig, ResponseRow, StoredForm } from './types';
 
 type FormRow = { slug: string; config: unknown; updated_at: string | null; updated_by: string | null };
 
+// Settings added to the site after a form was saved come from its starting version.
+const withNewSettings = (slug: string, config: unknown) =>
+  DEFAULT_FORMS[slug] && config && typeof config === 'object' ? { ...DEFAULT_FORMS[slug], ...config } : config;
+
 const toStored = (row: FormRow): StoredForm => ({
   slug: row.slug,
-  config: normalizeConfig(row.config, row.slug),
+  config: normalizeConfig(withNewSettings(row.slug, row.config), row.slug),
   updatedAt: row.updated_at,
   updatedBy: row.updated_by,
 });
@@ -112,8 +116,52 @@ export async function getVersions(slug: string, limit = 15): Promise<Version[]> 
     id: v.id as number,
     savedAt: v.saved_at as string,
     savedBy: (v.saved_by as string | null) ?? null,
-    config: normalizeConfig(v.config, slug),
+    config: normalizeConfig(withNewSettings(slug, v.config), slug),
   }));
+}
+
+/**
+ * How many have signed up so far: copies of the first repeating part (each child on the Angel
+ * Tree form), or whole responses if the form has none.
+ */
+export async function getFilled(slug: string, config: FormConfig): Promise<number> {
+  const db = createAdminClient();
+  const repeat = config.sections.find((s) => s.repeat);
+  if (!repeat) {
+    const { count, error } = await db
+      .from('responses')
+      .select('id', { count: 'exact', head: true })
+      .eq('form_slug', slug);
+    if (error) throw error;
+    return count ?? 0;
+  }
+  const { data, error } = await db
+    .from('responses')
+    .select(`items:answers->${repeat.id}`)
+    .eq('form_slug', slug)
+    .limit(10000);
+  if (error) throw error;
+  return (data ?? []).reduce((n, row) => {
+    const items = (row as unknown as { items: unknown }).items;
+    return n + (Array.isArray(items) ? items.length : 0);
+  }, 0);
+}
+
+/** Sign-up counts for the forms that have a limit, by slug. Forms without a limit are left out. */
+export async function getFilledForLimited(forms: StoredForm[]): Promise<Record<string, number>> {
+  const out: Record<string, number> = {};
+  await Promise.all(
+    forms
+      .filter((f) => f.config.capacity)
+      .map(async (f) => {
+        try {
+          out[f.slug] = await getFilled(f.slug, f.config);
+        } catch (e) {
+          console.error('getFilled failed', f.slug, e);
+        }
+      }),
+  );
+  return out;
 }
 
 // ---------- Responses ----------

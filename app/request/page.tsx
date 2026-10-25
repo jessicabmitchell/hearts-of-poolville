@@ -4,7 +4,7 @@ import LangToggle from '@/components/LangToggle';
 import { dict, toLang } from '@/lib/i18n';
 import { formPath } from '@/lib/forms/defaults';
 import { formatDay, openState, tx } from '@/lib/forms/logic';
-import { getAllForms } from '@/lib/forms/store';
+import { getAllForms, getFilledForLimited } from '@/lib/forms/store';
 
 export const metadata: Metadata = { title: 'Request help' };
 
@@ -13,9 +13,10 @@ export default async function RequestPage({ searchParams }: { searchParams: Prom
   const lang = toLang((await searchParams).lang);
   const t = dict(lang).request;
   const forms = (await getAllForms()).filter((f) => f.config.onRequestPage && !f.config.archived);
+  const filled = await getFilledForLimited(forms);
   const href = (slug: string) => (lang === 'es' ? `${formPath(slug)}?lang=es` : formPath(slug));
 
-  const open = forms.filter((f) => openState(f.config) === 'open');
+  const open = forms.filter((f) => openState(f.config, undefined, filled[f.slug]) === 'open');
   const upcoming = forms
     .filter((f) => openState(f.config) === 'not_yet' && f.config.opens)
     .sort((a, b) => a.config.opens!.localeCompare(b.config.opens!));

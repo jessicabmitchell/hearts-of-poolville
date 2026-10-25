@@ -56,6 +56,15 @@ export type FormConfig = {
   opens: string | null;
   closes: string | null;
   closedMessage: T;
+  /**
+   * Close the form once this many have signed up, or null for no limit. Counts copies of the first
+   * repeating part (each child on the Angel Tree form), or whole responses if there is none.
+   */
+  capacity: number | null;
+  /** What is being counted, for volunteers: "angels", "families". */
+  capacityUnit: string;
+  /** Shown instead of the form once the limit is reached. */
+  fullMessage: T;
   submitLabel: T;
   thanksTitle: T;
   thanksBody: T;

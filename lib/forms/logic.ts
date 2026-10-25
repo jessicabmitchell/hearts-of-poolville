@@ -21,21 +21,29 @@ export function newId(prefix: string): string {
 
 // ---------- Open and closed ----------
 
-export type OpenState = 'open' | 'not_yet' | 'closed';
+export type OpenState = 'open' | 'not_yet' | 'closed' | 'full';
 
 /** Today's date in Poolville as 'YYYY-MM-DD'. */
 export function todayInPoolville(now = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(now);
 }
 
-/** Whether a form takes responses today. Opening and closing days both count as open. */
-export function openState(c: Pick<FormConfig, 'enabled' | 'opens' | 'closes' | 'archived'>, now = new Date()): OpenState {
+/**
+ * Whether a form takes responses today. Opening and closing days both count as open. `filled` is
+ * how many have signed up so far, for forms with a limit.
+ */
+export function openState(
+  c: Pick<FormConfig, 'enabled' | 'opens' | 'closes' | 'archived' | 'capacity'>,
+  now = new Date(),
+  filled = 0,
+): OpenState {
   // `OPEN_ALL_FORMS=1 npm run dev` opens every form on your own computer, to preview them early.
   if (process.env.NODE_ENV === 'development' && process.env.OPEN_ALL_FORMS === '1') return 'open';
   if (!c.enabled || c.archived) return 'closed';
   const day = todayInPoolville(now);
   if (c.opens && day < c.opens) return 'not_yet';
   if (c.closes && day > c.closes) return 'closed';
+  if (c.capacity && filled >= c.capacity) return 'full';
   return 'open';
 }
 
@@ -302,6 +310,9 @@ export function normalizeConfig(input: unknown, fallbackName = 'Form'): FormConf
     opens: toDate(o.opens),
     closes: toDate(o.closes),
     closedMessage: toT(o.closedMessage, 500),
+    capacity: Number.isInteger(Number(o.capacity)) && Number(o.capacity) > 0 ? Math.min(Number(o.capacity), 100000) : null,
+    capacityUnit: str(o.capacityUnit, 40).trim() || (sections.some((s) => s.repeat) ? 'children' : 'responses'),
+    fullMessage: toT(o.fullMessage, 500),
     submitLabel: toT(o.submitLabel, 60),
     thanksTitle: toT(o.thanksTitle, 200),
     thanksBody: toT(o.thanksBody, 1000),

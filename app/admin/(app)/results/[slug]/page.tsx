@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import AutoRefresh from '@/components/AutoRefresh';
 import { formPath } from '@/lib/forms/defaults';
-import { listColumns, searchText } from '@/lib/forms/results';
+import { firstRepeat, listColumns, searchText } from '@/lib/forms/results';
 import { openLabel } from '@/lib/forms/status';
 import { getForm, getResponses } from '@/lib/forms/store';
 import { requireAdmin } from '@/lib/auth';
@@ -41,7 +41,12 @@ export default async function ResultsPage({
   const statuses = Array.from(new Set([...c.statuses, ...rows.map((r) => r.status)]));
   const needle = q.trim().toLowerCase();
   const shown = rows.filter((r) => (!status || r.status === status) && (!needle || searchText(r).includes(needle)));
-  const open = openLabel(c);
+  // Sign-ups so far: each copy of the repeating part (each child), or each response.
+  const repeat = firstRepeat(c);
+  const filled = repeat
+    ? rows.reduce((n, r) => n + (Array.isArray(r.answers?.[repeat.id]) ? (r.answers[repeat.id] as unknown[]).length : 0), 0)
+    : rows.length;
+  const open = openLabel(c, filled);
   const exportHref = `/admin/results/${slug}/export${status ? `?status=${encodeURIComponent(status)}` : ''}`;
 
   return (
@@ -70,6 +75,27 @@ export default async function ResultsPage({
           </a>
         </div>
       </div>
+
+      {(repeat || c.capacity) && (
+        <div className="stat">
+          <p className="stat-number">{filled}</p>
+          <div>
+            <p className="stat-label">{c.capacityUnit} signed up</p>
+            <p className="fine">
+              {c.capacity
+                ? filled >= c.capacity
+                  ? `Limit of ${c.capacity} reached. The form is closed.`
+                  : `Limit ${c.capacity} · ${c.capacity - filled} left before the form closes`
+                : 'No limit set.'}{' '}
+              {!c.archived && (
+                <Link className="textlink" href={`/admin/forms/${slug}#limit`}>
+                  {c.capacity ? 'Change limit' : 'Set a limit'}
+                </Link>
+              )}
+            </p>
+          </div>
+        </div>
+      )}
 
       <form className="filters" role="search">
         <input type="search" name="q" defaultValue={q} placeholder="Search names, sizes, anything…" aria-label="Search" />

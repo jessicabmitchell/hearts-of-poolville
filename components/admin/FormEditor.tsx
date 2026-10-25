@@ -430,6 +430,7 @@ export default function FormEditor({
   updatedAt,
   updatedBy,
   versions,
+  filled,
 }: {
   slug: string;
   initial: FormConfig;
@@ -437,6 +438,8 @@ export default function FormEditor({
   updatedAt: string | null;
   updatedBy: string | null;
   versions: VersionInfo[];
+  /** How many have signed up so far, for the limit setting. */
+  filled: number;
 }) {
   const router = useRouter();
   const [config, setConfig] = useState(initial);
@@ -488,7 +491,8 @@ export default function FormEditor({
       }
     });
 
-  const status = openLabel(config);
+  const status = openLabel(config, filled);
+  const repeat = config.sections.find((s) => s.repeat);
 
   return (
     <div className="editor">
@@ -540,6 +544,40 @@ export default function FormEditor({
           </label>
         </div>
         <BiText label="Message shown when it's closed" value={config.closedMessage} onChange={(closedMessage) => set({ closedMessage })} />
+
+        <div className="limit" id="limit">
+          <span className="bi-label">Sign-up limit</span>
+          <span className="hint">
+            {repeat
+              ? `Counts each copy of “${repeat.title.en || repeat.repeat!.itemLabel.en}”, so a family with 3 children counts as 3.`
+              : 'Counts each response.'}{' '}
+            The form closes by itself once the limit is reached. Right now: <strong>{filled}</strong> {config.capacityUnit}{' '}
+            signed up.
+          </span>
+          <div className="date-row">
+            <label className="field">
+              <span className="bi-label">Close after this many</span>
+              <input
+                type="number"
+                min={1}
+                inputMode="numeric"
+                placeholder="No limit"
+                value={config.capacity ?? ''}
+                onChange={(e) => {
+                  const n = Number.parseInt(e.target.value, 10);
+                  set({ capacity: Number.isInteger(n) && n > 0 ? n : null });
+                }}
+              />
+              <span className="hint">Leave empty for no limit.</span>
+            </label>
+            <label className="field">
+              <span className="bi-label">What you are counting</span>
+              <input value={config.capacityUnit} onChange={(e) => set({ capacityUnit: e.target.value })} />
+              <span className="hint">For example: angels, families. Only volunteers see this.</span>
+            </label>
+          </div>
+          <BiText label="Message shown when it's full" value={config.fullMessage} onChange={(fullMessage) => set({ fullMessage })} />
+        </div>
       </section>
 
       <section className="card">
