@@ -20,6 +20,14 @@ export default async function Home() {
 
   return (
     <main>
+      {SITE.wishlistUrl && (
+        <a className="wishlist" href={SITE.wishlistUrl} target="_blank" rel="noopener noreferrer">
+          <span className="wishlist-text">
+            <strong>Shop our Amazon wish list.</strong> Pick something we need for families this season.
+          </span>
+          <span className="wishlist-go">See the list ↗</span>
+        </a>
+      )}
       <div className="hero">
         <div>
           <p className="eyebrow">{SITE.location}</p>
