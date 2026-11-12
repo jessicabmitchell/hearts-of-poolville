@@ -8,7 +8,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 export type MealResult = { ok: true } | { ok: false; message: string };
 
-const fail = (message: string): MealResult => ({ ok: false, message });
+const fail = (message: string) => ({ ok: false as const, message });
 const TRY_AGAIN = 'That did not save. Check your connection and try again.';
 
 function eventOf(v: string): MealEvent {
@@ -37,12 +37,19 @@ export async function saveMealPlan(eventName: string, plan: unknown): Promise<Me
 
 // ---------- Inventory ----------
 
+export type StockResult = { ok: true; onHand: number; at: number } | { ok: false; message: string };
+
+/**
+ * Add or take away stock. Sends back the item's new total and when it was read, so the page can
+ * show it right away without reloading everything. Admin pages always load fresh data, so there
+ * is nothing to rebuild here.
+ */
 export async function changeStock(
   eventName: string,
   itemId: string,
   change: number,
   reason: 'donation' | 'correction',
-): Promise<MealResult> {
+): Promise<StockResult> {
   const user = await requireAdmin();
   const event = eventOf(eventName);
   const n = Math.round(change);
@@ -56,8 +63,13 @@ export async function changeStock(
     console.error('changeStock failed', error);
     return fail(TRY_AGAIN);
   }
-  refresh(event);
-  return { ok: true };
+  const { data } = await createAdminClient()
+    .from('inventory_totals')
+    .select('on_hand')
+    .eq('event', event)
+    .eq('item_id', itemId)
+    .maybeSingle();
+  return { ok: true, onHand: Number(data?.on_hand) || 0, at: Date.now() };
 }
 
 /** Take back a count by adding the opposite amount, so the history still shows both. */
@@ -73,7 +85,6 @@ export async function undoEntry(eventName: string, entryId: number): Promise<Mea
     .from('inventory_entries')
     .insert({ event, item_id: entry.item_id, change: -entry.change, reason: 'correction', created_by: user.email });
   if (error) return fail(TRY_AGAIN);
-  refresh(event);
   return { ok: true };
 }
 

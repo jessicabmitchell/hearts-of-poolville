@@ -1,7 +1,7 @@
-import type { MealResult } from '@/app/admin/meals/actions';
+type Failed = { ok: false; message: string };
 
 /** Run a save, turning a dropped connection into a message instead of a broken page. */
-export async function tryAction(run: () => Promise<MealResult>): Promise<MealResult> {
+export async function tryAction<R extends { ok: true } | Failed>(run: () => Promise<R>): Promise<R | Failed> {
   try {
     return await run();
   } catch (e) {

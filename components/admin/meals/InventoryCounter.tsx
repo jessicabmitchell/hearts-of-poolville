@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { changeStock, undoEntry } from '@/app/admin/meals/actions';
 import { tryAction } from './tryAction';
 import type { KitItem } from '@/lib/meals/logic';
@@ -17,28 +17,56 @@ const REASONS: Record<string, string> = {
 };
 
 /** Tap to count donations. Every tap is saved as its own change, so volunteers never overwrite each other. */
-export default function InventoryCounter({ event, rows, entries }: { event: string; rows: Row[]; entries: EntryView[] }) {
+export default function InventoryCounter({
+  event,
+  rows,
+  entries,
+  loadedAt,
+}: {
+  event: string;
+  rows: Row[];
+  entries: EntryView[];
+  /** When the page read the totals, to tell whether a total sent back by a save is newer. */
+  loadedAt: number;
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  // Changes saved but not yet shown by a refresh, so the numbers move as soon as you tap.
-  const [extra, setExtra] = useState<Record<string, number>>({});
+  // Taps sent but not answered yet, so the number moves the moment you tap.
+  const [inFlight, setInFlight] = useState<Record<string, number>>({});
+  // The newest total the server sent back for each item, and when.
+  const [known, setKnown] = useState<Record<string, { onHand: number; at: number }>>({});
+  const waiting = useRef(0);
+  const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (settle.current) clearTimeout(settle.current);
+  }, []);
   const [custom, setCustom] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<{ error: boolean; text: string } | null>(null);
   const [filter, setFilter] = useState('');
 
-  const add = (item: KitItem, change: number, reason: 'donation' | 'correction') => {
-    setExtra((e) => ({ ...e, [item.id]: (e[item.id] ?? 0) + change }));
-    start(async () => {
-      const result = await tryAction(() => changeStock(event, item.id, change, reason));
-      if (!result.ok) {
-        setExtra((e) => ({ ...e, [item.id]: (e[item.id] ?? 0) - change }));
-        setMessage({ error: true, text: result.message });
-        return;
-      }
+  const add = async (item: KitItem, change: number, reason: 'donation' | 'correction') => {
+    setInFlight((f) => ({ ...f, [item.id]: (f[item.id] ?? 0) + change }));
+    waiting.current += 1;
+    if (settle.current) clearTimeout(settle.current);
+    const result = await tryAction(() => changeStock(event, item.id, change, reason));
+    setInFlight((f) => ({ ...f, [item.id]: (f[item.id] ?? 0) - change }));
+    if (result.ok) {
+      const { onHand, at } = result;
+      setKnown((k) => (k[item.id] && k[item.id].at > at ? k : { ...k, [item.id]: { onHand, at } }));
       setMessage({ error: false, text: `${change > 0 ? '+' : ''}${change} ${item.name} saved.` });
-      router.refresh();
-      setExtra((e) => ({ ...e, [item.id]: (e[item.id] ?? 0) - change }));
-    });
+    } else {
+      setMessage({ error: true, text: result.message });
+    }
+    // Once the tapping stops, reload once so Recent changes and other volunteers' counts show.
+    waiting.current -= 1;
+    if (waiting.current === 0) settle.current = setTimeout(() => router.refresh(), 1500);
+  };
+
+  // Whichever is newer: the page's totals or the last total a save sent back. Then add taps
+  // still on their way.
+  const current = (id: string, base: number) => {
+    const k = known[id];
+    return (k && k.at > loadedAt ? k.onHand : base) + (inFlight[id] ?? 0);
   };
 
   const shown = rows.filter((r) => r.item.name.toLowerCase().includes(filter.trim().toLowerCase()));
@@ -56,7 +84,7 @@ export default function InventoryCounter({ event, rows, entries }: { event: stri
 
       <div className="inv-list">
         {shown.map(({ item, onHand: base, needed }) => {
-          const onHand = base + (extra[item.id] ?? 0);
+          const onHand = current(item.id, base);
           const short = needed - Math.max(onHand, 0);
           const n = Number.parseInt(custom[item.id] ?? '', 10);
           return (

@@ -14,6 +14,8 @@ export default async function InventoryPage({ params }: { params: Promise<{ even
   if (!isMealEvent(event)) notFound();
 
   let plan, families, stock, entries;
+  // Taken before reading, so a total sent back by a later save always counts as newer.
+  const loadedAt = Date.now();
   try {
     [{ plan }, families, stock, entries] = await Promise.all([getPlan(event), getFamilies(event), getStock(event), getEntries(event)]);
   } catch (e) {
@@ -40,6 +42,7 @@ export default async function InventoryPage({ params }: { params: Promise<{ even
       <AutoRefresh />
       <InventoryCounter
         event={event}
+        loadedAt={loadedAt}
         rows={plan.items.map((item) => ({ item, onHand: stock[item.id] ?? 0, needed: needed[item.id] ?? 0 }))}
         entries={entries.map((e) => ({
           id: e.id,
