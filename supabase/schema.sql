@@ -42,130 +42,157 @@ create index if not exists responses_form_created_idx on public.responses (form_
 create index if not exists form_versions_slug_idx on public.form_versions (slug, id desc);
 
 -- ---------------------------------------------------------------------------------------------
--- Copy responses from the tables the site used before forms could be edited. Each response keeps
--- its id, so running this again copies nothing twice. Once you have checked the admin page, the
--- old tables (help_requests, tag_pickups, dinner_applications, angel_tree_applications,
--- help_offers) can be deleted.
+-- Holiday meals: kit contents, inventory, packing, and pickup. "event" is the form's slug
+-- (thanksgiving or christmas), and each registration is one response to that form.
 -- ---------------------------------------------------------------------------------------------
-do $$
+
+-- Kit sizes and what goes in each kit, as edited on the Meal plan page.
+create table if not exists public.meal_plans (
+  event text primary key,
+  config jsonb not null,
+  updated_at timestamptz,
+  updated_by text
+);
+
+-- One row per registered family: pickup code, packing checklist, packing and pickup.
+create table if not exists public.meal_kits (
+  response_id uuid primary key references public.responses (id) on delete cascade,
+  event text not null,
+  number int not null,
+  code text not null,
+  checked jsonb not null default '[]'::jsonb,   -- item ids ticked so far while packing
+  packed_at timestamptz,
+  packed_by text,
+  items jsonb,                                  -- quantities taken from inventory when packed
+  picked_up_at timestamptz,
+  picked_up_by text,
+  pickup_override boolean not null default false,
+  history jsonb not null default '[]'::jsonb,
+  unique (event, number)
+);
+
+-- Every change to inventory, never edited, so two volunteers counting at once never overwrite
+-- each other. What is on hand is the sum of the changes.
+create table if not exists public.inventory_entries (
+  id bigint generated always as identity primary key,
+  event text not null,
+  item_id text not null,
+  change int not null,
+  reason text not null check (reason in ('donation', 'correction', 'packed', 'unpacked')),
+  response_id uuid,
+  created_at timestamptz not null default now(),
+  created_by text
+);
+
+create or replace view public.inventory_totals with (security_invoker = true) as
+  select event, item_id, sum(change)::int as on_hand from public.inventory_entries group by event, item_id;
+
+alter table public.meal_plans enable row level security;
+alter table public.meal_kits enable row level security;
+alter table public.inventory_entries enable row level security;
+
+create index if not exists inventory_entries_event_idx on public.inventory_entries (event, id desc);
+create index if not exists meal_kits_event_idx on public.meal_kits (event, number);
+
+-- Give every registration that does not have one yet a pickup code (TG-001, TG-002, ...), in the
+-- order they registered.
+create or replace function public.assign_meal_codes(p_event text, p_prefix text)
+returns void language plpgsql as $$
+declare
+  next_n int;
 begin
-  if to_regclass('public.help_offers') is not null then
-    insert into public.responses (id, form_slug, created_at, language, status, answers)
-    select id, 'help', created_at, language,
-      case status when 'contacted' then 'Contacted' else 'New' end,
-      jsonb_build_object(
-        'name', name,
-        'email', coalesce(email, ''),
-        'phone', coalesce(phone, ''),
-        'help_with', coalesce((select jsonb_agg(case when v = 'other' then '__other' else v end) from unnest(help_with) v), '[]'::jsonb),
-        'help_with__other', coalesce(other, '')
-      )
-    from public.help_offers
-    on conflict (id) do nothing;
-  end if;
-
-  if to_regclass('public.tag_pickups') is not null then
-    insert into public.responses (id, form_slug, created_at, language, status, answers)
-    select id, 'tags', created_at, 'en',
-      case status when 'returned' then 'Gift returned' else 'Tag taken' end,
-      jsonb_build_object(
-        'tags', tag_numbers,
-        'name', name,
-        'phone', coalesce(phone, ''),
-        'email', coalesce(email, ''),
-        'notes', coalesce(notes, '')
-      )
-    from public.tag_pickups
-    on conflict (id) do nothing;
-  end if;
-
-  if to_regclass('public.help_requests') is not null then
-    insert into public.responses (id, form_slug, created_at, language, status, answers)
-    select id, 'request', created_at, 'en',
-      case status when 'in_progress' then 'In progress' when 'fulfilled' then 'Done' else 'New' end,
-      jsonb_build_object(
-        'programs', to_jsonb(programs),
-        'name', name,
-        'phone', coalesce(phone, ''),
-        'email', coalesce(email, ''),
-        'address', coalesce(address, ''),
-        'household', coalesce(household_size::text, ''),
-        'details', coalesce(details, '')
-      )
-    from public.help_requests
-    on conflict (id) do nothing;
-  end if;
-
-  if to_regclass('public.dinner_applications') is not null then
-    insert into public.responses (id, form_slug, created_at, language, status, answers)
-    select id, holiday, created_at, language,
-      case status when 'in_progress' then 'In progress' when 'fulfilled' then 'Done' else 'New' end,
-      jsonb_build_object(
-        'for_who', case when for_self then 'self' else 'other' end,
-        'name', name,
-        'phone', coalesce(phone, ''),
-        'email', coalesce(email, ''),
-        'pickup', case when pickup_by is null then 'me' else 'other' end,
-        'pickup_name', coalesce(pickup_by, '')
-      ) || case when for_self then
-        jsonb_build_object('household', coalesce(household_size::text, ''), 'address', coalesce(address, ''))
-      else
-        jsonb_build_object(
-          'recipient_name', coalesce(recipient_name, ''),
-          'recipient_household', coalesce(household_size::text, ''),
-          'recipient_address', coalesce(address, ''),
-          'recipient_phone', coalesce(recipient_phone, ''),
-          'recipient_email', coalesce(recipient_email, '')
-        )
-      end
-    from public.dinner_applications
-    on conflict (id) do nothing;
-  end if;
-
-  -- The old Angel Tree table had one row per child. Children sent together become one response.
-  if to_regclass('public.angel_tree_applications') is not null then
-    insert into public.responses (id, form_slug, created_at, language, status, answers)
-    select family, 'angel_tree', min(created_at), (array_agg(language order by created_at))[1],
-      case (array_agg(status order by created_at))[1]
-        when 'in_progress' then 'In progress' when 'fulfilled' then 'Done' else 'New' end,
-      (array_agg(shared order by created_at))[1] || jsonb_build_object('children', jsonb_agg(child order by created_at))
-    from (
-      select coalesce(family_id, id) as family, created_at, language, status,
-        jsonb_build_object(
-          'for_who', case when for_self then 'self' else 'other' end,
-          'name', name,
-          'phone', coalesce(phone, ''),
-          'email', coalesce(email, ''),
-          'pickup', case when pickup_by is null then 'me' else 'other' end,
-          'pickup_name', coalesce(pickup_by, ''),
-          'address', case when for_self then coalesce(address, '') else '' end,
-          'parent_name', coalesce(parent_name, ''),
-          'parent_phone', coalesce(parent_phone, ''),
-          'parent_email', coalesce(parent_email, ''),
-          'parent_address', case when for_self then '' else coalesce(address, '') end
-        ) as shared,
-        jsonb_build_object(
-          'child_name', child_name,
-          'age', age,
-          'gender', coalesce(gender, ''),
-          'shirt', coalesce(shirt_size, ''),
-          'jeans', coalesce(jeans_size, ''),
-          'shoe', coalesce(shoe_size, ''),
-          'coat', coalesce(coat_size, ''),
-          'bedding', case
-            when bedding_size is null then ''
-            when bedding_size in ('twin', 'full', 'queen', 'king') then bedding_size
-            else '__other' end,
-          'bedding__other', case
-            when bedding_size is null or bedding_size in ('twin', 'full', 'queen', 'king') then ''
-            else bedding_size end,
-          'interests', coalesce(interests, ''),
-          'color', coalesce(favorite_color, ''),
-          'wishes', coalesce(wishes, '')
-        ) as child
-      from public.angel_tree_applications
-    ) rows
-    group by family
-    on conflict (id) do nothing;
-  end if;
+  perform pg_advisory_xact_lock(hashtext('meal_codes:' || p_event));
+  select coalesce(max(number), 0) into next_n from public.meal_kits where event = p_event;
+  insert into public.meal_kits (response_id, event, number, code)
+  select id, p_event, next_n + n, p_prefix || '-' || lpad((next_n + n)::text, 3, '0')
+  from (
+    select r.id, row_number() over (order by r.created_at, r.id) as n
+    from public.responses r
+    where r.form_slug = p_event
+      and not exists (select 1 from public.meal_kits k where k.response_id = r.id)
+  ) fresh;
 end $$;
+
+-- Mark a family's meal packed and take its items out of inventory, all at once. Returns 'ok', or
+-- why it could not: 'missing' or 'already_packed'.
+create or replace function public.pack_meal(p_response uuid, p_items jsonb, p_by text)
+returns text language plpgsql as $$
+declare
+  k public.meal_kits;
+begin
+  select * into k from public.meal_kits where response_id = p_response for update;
+  if not found then return 'missing'; end if;
+  if k.packed_at is not null then return 'already_packed'; end if;
+  update public.meal_kits
+    set packed_at = now(), packed_by = p_by, items = p_items,
+        history = history || jsonb_build_object('action', 'packed', 'by', p_by, 'at', now())
+    where response_id = p_response;
+  insert into public.inventory_entries (event, item_id, change, reason, response_id, created_by)
+    select k.event, key, -(value::int), 'packed', p_response, p_by
+    from jsonb_each_text(p_items) where value::int <> 0;
+  return 'ok';
+end $$;
+
+-- Reopen a packed meal and put its items back in inventory. Returns 'ok', 'missing',
+-- 'not_packed', or 'picked_up'.
+create or replace function public.unpack_meal(p_response uuid, p_by text)
+returns text language plpgsql as $$
+declare
+  k public.meal_kits;
+begin
+  select * into k from public.meal_kits where response_id = p_response for update;
+  if not found then return 'missing'; end if;
+  if k.packed_at is null then return 'not_packed'; end if;
+  if k.picked_up_at is not null then return 'picked_up'; end if;
+  insert into public.inventory_entries (event, item_id, change, reason, response_id, created_by)
+    select k.event, key, value::int, 'unpacked', p_response, p_by
+    from jsonb_each_text(coalesce(k.items, '{}'::jsonb)) where value::int <> 0;
+  update public.meal_kits
+    set packed_at = null, packed_by = null, items = null,
+        history = history || jsonb_build_object('action', 'reopened', 'by', p_by, 'at', now())
+    where response_id = p_response;
+  return 'ok';
+end $$;
+
+-- Mark a meal picked up, or undo that. An unpacked meal is refused unless p_override is true.
+-- Returns 'ok', 'missing', 'not_packed', 'already', or 'not_picked_up'.
+create or replace function public.set_pickup(p_response uuid, p_by text, p_override boolean, p_undo boolean)
+returns text language plpgsql as $$
+declare
+  k public.meal_kits;
+begin
+  select * into k from public.meal_kits where response_id = p_response for update;
+  if not found then return 'missing'; end if;
+  if p_undo then
+    if k.picked_up_at is null then return 'not_picked_up'; end if;
+    update public.meal_kits
+      set picked_up_at = null, picked_up_by = null, pickup_override = false,
+          history = history || jsonb_build_object('action', 'pickup undone', 'by', p_by, 'at', now())
+      where response_id = p_response;
+    return 'ok';
+  end if;
+  if k.picked_up_at is not null then return 'already'; end if;
+  if k.packed_at is null and not p_override then return 'not_packed'; end if;
+  update public.meal_kits
+    set picked_up_at = now(), picked_up_by = p_by, pickup_override = (k.packed_at is null),
+        history = history || jsonb_build_object(
+          'action', case when k.packed_at is null then 'picked up before packing' else 'picked up' end,
+          'by', p_by, 'at', now())
+    where response_id = p_response;
+  return 'ok';
+end $$;
+
+-- Only the website's server (service role) may run these.
+revoke all on function public.assign_meal_codes(text, text) from public, anon, authenticated;
+revoke all on function public.pack_meal(uuid, jsonb, text) from public, anon, authenticated;
+revoke all on function public.unpack_meal(uuid, text) from public, anon, authenticated;
+revoke all on function public.set_pickup(uuid, text, boolean, boolean) from public, anon, authenticated;
+grant execute on function public.assign_meal_codes(text, text) to service_role;
+grant execute on function public.pack_meal(uuid, jsonb, text) to service_role;
+grant execute on function public.unpack_meal(uuid, text) to service_role;
+grant execute on function public.set_pickup(uuid, text, boolean, boolean) to service_role;
+
+-- The one-time copy of responses from the site's original tables (help_requests, tag_pickups,
+-- dinner_applications, angel_tree_applications, help_offers) was removed after it ran, so running
+-- this file again cannot bring back a response you deleted. It is in the git history (commit
+-- 25545e7) if it is ever needed.

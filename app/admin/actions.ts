@@ -43,10 +43,12 @@ export async function updateStatus(formData: FormData) {
 }
 
 export async function deleteResponse(formData: FormData) {
-  await requireAdmin();
+  const user = await requireAdmin();
   const id = String(formData.get('id') ?? '');
   const slug = String(formData.get('slug') ?? '');
   if (id) {
+    // A packed holiday meal's items go back into inventory before the registration is removed.
+    await createAdminClient().rpc('unpack_meal', { p_response: id, p_by: user.email ?? 'unknown' });
     const { error } = await createAdminClient().from('responses').delete().eq('id', id);
     if (error) console.error('deleteResponse failed', error);
   }

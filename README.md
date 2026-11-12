@@ -15,6 +15,21 @@ Website for Hearts of Poolville, a community charity in Poolville, Texas.
 
 Forms are saved in Supabase, so editing them on the admin page needs no code changes.
 
+### Holiday meals
+
+The admin side menu has a section for Thanksgiving meals and one for Christmas meals, built on
+each form's registrations:
+
+- **Dashboard**: families, people to feed, kits needed by size, meals packed and picked up, and a
+  Needs attention list (shortages, missing family sizes, unfinished kits, meals waiting).
+- **Inventory**: tap to count donations. Every tap is saved as its own entry, so several volunteers
+  can count at once, and any count can be undone.
+- **Meal plan**: kit sizes by household size and what goes in each kit.
+- **Packing**: one family at a time with a checklist. Marking a family packed takes its items out of
+  inventory; reopening a meal puts them back.
+- **Pickup**: search by name, phone, or pickup code (TG-001, CH-001). A meal that is not packed can
+  only be marked picked up with an extra confirmation.
+
 ## Set up
 
 1. **Create a Supabase project** at supabase.com.

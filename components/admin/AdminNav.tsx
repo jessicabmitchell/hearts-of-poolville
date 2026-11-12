@@ -4,14 +4,17 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 
-export type NavItem = { href: string; label: string; badge?: number; note?: string };
+export type NavItem = { href: string; label: string; badge?: number; note?: string; exact?: boolean };
+export type NavGroup = { title: string; items: NavItem[] };
 
 /** The admin side menu. On a phone it folds up behind a Menu button. */
 export default function AdminNav({
+  meals,
   results,
   edit,
   footer,
 }: {
+  meals: NavGroup[];
   results: NavItem[];
   edit: NavItem[];
   footer: ReactNode;
@@ -22,7 +25,7 @@ export default function AdminNav({
   useEffect(() => setOpen(false), [path]);
 
   const item = (it: NavItem) => {
-    const current = path === it.href || path.startsWith(`${it.href}/`);
+    const current = path === it.href || (!it.exact && path.startsWith(`${it.href}/`));
     return (
       <li key={it.href}>
         <Link href={it.href} aria-current={current ? 'page' : undefined}>
@@ -47,6 +50,12 @@ export default function AdminNav({
             </Link>
           </li>
         </ul>
+        {meals.map((g) => (
+          <div key={g.title}>
+            <p className="navhead">{g.title}</p>
+            <ul>{g.items.map(item)}</ul>
+          </div>
+        ))}
         <p className="navhead">Results</p>
         <ul>{results.map(item)}</ul>
         <p className="navhead">Edit forms</p>
