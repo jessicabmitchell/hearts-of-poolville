@@ -6,7 +6,8 @@ import { changeStock, undoEntry } from '@/app/admin/meals/actions';
 import { tryAction } from './tryAction';
 import type { KitItem } from '@/lib/meals/logic';
 
-type Row = { item: KitItem; onHand: number; needed: number };
+/** `committed` is what donors promised and have not brought yet. */
+type Row = { item: KitItem; onHand: number; needed: number; committed: number };
 type EntryView = { id: number; itemName: string; change: number; reason: string; who: string; when: string; canUndo: boolean };
 
 const REASONS: Record<string, string> = {
@@ -83,9 +84,9 @@ export default function InventoryCounter({
       )}
 
       <div className="inv-list">
-        {shown.map(({ item, onHand: base, needed }) => {
+        {shown.map(({ item, onHand: base, needed, committed }) => {
           const onHand = current(item.id, base);
-          const short = needed - Math.max(onHand, 0);
+          const short = needed - Math.max(onHand, 0) - committed;
           const n = Number.parseInt(custom[item.id] ?? '', 10);
           return (
             <div key={item.id} className={short > 0 ? 'inv-row short' : 'inv-row'}>
@@ -96,9 +97,15 @@ export default function InventoryCounter({
               <div className="inv-counts">
                 <span className="inv-have">{onHand}</span>
                 <span className="fine">
-                  on hand · {needed} needed
+                  on hand · <strong>{committed}</strong> committed · {needed} needed
                   <br />
-                  {short > 0 ? <strong className="error-text">{short} short</strong> : needed > 0 ? 'Enough' : ''}
+                  {short > 0 ? (
+                    <strong className="error-text">{short} still short</strong>
+                  ) : needed > 0 ? (
+                    committed > 0 && Math.max(onHand, 0) < needed ? 'Covered once donors bring what they promised' : 'Enough'
+                  ) : (
+                    ''
+                  )}
                 </span>
               </div>
               <div className="inv-buttons">

@@ -4,8 +4,8 @@
 import type { Answers } from '@/lib/forms/types';
 
 export const EVENTS = {
-  thanksgiving: { name: 'Thanksgiving', prefix: 'TG' },
-  christmas: { name: 'Christmas', prefix: 'CH' },
+  thanksgiving: { name: 'Thanksgiving', nameEs: 'Acción de Gracias', prefix: 'TG', donationPrefix: 'DN' },
+  christmas: { name: 'Christmas', nameEs: 'Navidad', prefix: 'CH', donationPrefix: 'DC' },
 } as const;
 export type MealEvent = keyof typeof EVENTS;
 export const isMealEvent = (v: string): v is MealEvent => v in EVENTS;
@@ -13,7 +13,15 @@ export const isMealEvent = (v: string): v is MealEvent => v in EVENTS;
 /** A kit size, chosen by household size. `max` null means no upper limit. */
 export type Tier = { id: string; name: string; min: number; max: number | null };
 /** One thing that goes in a kit, with how many for each kit size (by tier id). */
-export type KitItem = { id: string; name: string; unit: string; qty: Record<string, number> };
+export type KitItem = {
+  id: string;
+  name: string;
+  unit: string;
+  /** Spanish name and unit for the public donation page. Empty falls back to English. */
+  nameEs: string;
+  unitEs: string;
+  qty: Record<string, number>;
+};
 export type MealPlan = { tiers: Tier[]; items: KitItem[] };
 
 const TIERS: Tier[] = [
@@ -41,10 +49,36 @@ const ITEMS: [string, string, string, number, number, number][] = [
   ['turkey', 'Turkey', 'whole', 1, 1, 1],
 ];
 
+// Spanish names for the public donation page. Have a native speaker check them.
+const SPANISH: Record<string, [string, string]> = {
+  potatoes: ['Papas', 'bolsas de 5 libras'],
+  gravy: ['Gravy (salsa)', 'sobres'],
+  green_beans: ['Ejotes', 'latas'],
+  cream_mushroom: ['Crema de champiñones', 'latas'],
+  fried_onions: ['Cebollas fritas', 'envases'],
+  corn: ['Elote', 'latas'],
+  carrots: ['Zanahorias', 'latas'],
+  mac_cheese: ['Macarrones con queso', 'cajas'],
+  stuffing: ['Relleno (stuffing)', 'cajas'],
+  cranberry: ['Salsa de arándano', 'latas'],
+  pumpkin: ['Calabaza', 'latas'],
+  evap_milk: ['Leche evaporada', 'latas'],
+  pie_crust: ['Base para pay', 'piezas'],
+  rolls: ['Panecillos', 'paquetes'],
+  turkey: ['Pavo', 'entero'],
+};
+
 export function defaultPlan(): MealPlan {
   return {
     tiers: TIERS.map((t) => ({ ...t })),
-    items: ITEMS.map(([id, name, unit, small, medium, large]) => ({ id, name, unit, qty: { small, medium, large } })),
+    items: ITEMS.map(([id, name, unit, small, medium, large]) => ({
+      id,
+      name,
+      unit,
+      nameEs: SPANISH[id]?.[0] ?? '',
+      unitEs: SPANISH[id]?.[1] ?? '',
+      qty: { small, medium, large },
+    })),
   };
 }
 
@@ -81,7 +115,17 @@ export function normalizePlan(input: unknown): MealPlan {
   const items = (Array.isArray(o.items) ? o.items : []).slice(0, 80).map((it) => {
     const qty: Record<string, number> = {};
     for (const t of tiers) qty[t.id] = int(it?.qty?.[t.id], 0, 999, 0);
-    return { id: unique(it?.id, 'item'), name: text(it?.name, 60) || 'Unnamed item', unit: text(it?.unit, 30), qty };
+    const itemId = unique(it?.id, 'item');
+    // Plans saved before Spanish names existed get the starting ones.
+    const fallback = it && !('nameEs' in it) ? SPANISH[itemId] : undefined;
+    return {
+      id: itemId,
+      name: text(it?.name, 60) || 'Unnamed item',
+      unit: text(it?.unit, 30),
+      nameEs: text(it?.nameEs, 60) || (fallback?.[0] ?? ''),
+      unitEs: text(it?.unitEs, 30) || (fallback?.[1] ?? ''),
+      qty,
+    };
   });
   return { tiers, items };
 }

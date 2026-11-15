@@ -1315,6 +1315,11 @@ details.danger summary {
   min-width: 110px;
 }
 
+.plan-table .stack {
+  display: grid;
+  gap: 4px;
+}
+
 .plan-table input.qty {
   min-width: 0;
   width: 72px;
@@ -1532,6 +1537,173 @@ details.danger summary {
   .pickup-actions,
   .pickup-actions .btn.big {
     width: 100%;
+  }
+}
+
+/* Food donations */
+.donate-items {
+  display: grid;
+  gap: 8px;
+}
+
+.donate-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.donate-item label {
+  display: grid;
+  font-weight: 500;
+}
+
+.form .donate-item input {
+  flex: 0 0 96px;
+  width: 96px;
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 11px;
+}
+
+.donate-item.covered {
+  opacity: 0.6;
+}
+
+.donate-thanks ul {
+  margin-top: 0;
+}
+
+.donate-code {
+  font-family: var(--font-mono);
+  font-size: 1.4rem;
+  letter-spacing: 0.05em;
+}
+
+.slots {
+  display: grid;
+  gap: 10px;
+}
+
+.slot-row {
+  display: grid;
+  grid-template-columns: 160px 135px 135px minmax(160px, 1fr) 110px;
+  gap: 8px 12px;
+  align-items: end;
+  padding: 12px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+}
+
+.slot-row.new {
+  border-style: dashed;
+}
+
+.slot-row input,
+.checkin input,
+.checkin select,
+select.move {
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.slot-tools {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.slot-msg {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.slot-group {
+  margin-bottom: 20px;
+}
+
+.slot-group h3 {
+  font-size: 1.1rem;
+  margin: 0 0 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: baseline;
+}
+
+.pledge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 18px;
+}
+
+.pledge-row.cancelled {
+  opacity: 0.6;
+}
+
+.pledge-info {
+  flex: 1 1 320px;
+}
+
+.pledge-info p {
+  margin: 0 0 4px;
+}
+
+.checkin {
+  flex: 1 1 320px;
+  display: grid;
+  gap: 8px;
+}
+
+.checkin p {
+  margin: 0;
+}
+
+.checkin-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px;
+  gap: 10px;
+  align-items: center;
+}
+
+select.move {
+  width: auto;
+}
+
+.pill.tone-warn {
+  background: var(--danger-bg);
+  border-color: transparent;
+}
+
+@media (max-width: 760px) {
+  .slot-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .slot-place {
+    grid-column: 1 / -1;
   }
 }
 

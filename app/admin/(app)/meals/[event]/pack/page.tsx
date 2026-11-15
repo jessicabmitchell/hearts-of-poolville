@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import AutoRefresh from '@/components/AutoRefresh';
 import PackingMode from '@/components/admin/meals/PackingMode';
@@ -27,6 +28,11 @@ export default async function PackingPage({
 
   return (
     <>
+      <p>
+        <Link className="textlink" href={`/admin/meals/${event}`}>
+          ← {EVENTS[event].name} meals
+        </Link>
+      </p>
       <div className="admin-title">
         <div>
           <h1>{EVENTS[event].name} packing</h1>

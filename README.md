@@ -29,6 +29,11 @@ each form's registrations:
   inventory; reopening a meal puts them back.
 - **Pickup**: search by name, phone, or pickup code (TG-001, CH-001). A meal that is not packed can
   only be marked picked up with an extra confirmation.
+- **Donations**: drop-off times and food donor sign-ups. The public page `/donate/thanksgiving` shows
+  what families still need (after what is on hand and what others promised) and lets neighbors pick
+  items and a drop-off time. Volunteers check donors in, which adds what they brought to inventory.
+  Promises from a time that ended without a check-in stop counting, so those items show as needed
+  again. The home page links to the donation page while drop-off times are open.
 
 ## Set up
 

@@ -2,6 +2,9 @@ import Link from 'next/link';
 import WaterTower from '@/components/WaterTower';
 import { openState } from '@/lib/forms/logic';
 import { getAllForms, getFilledForLimited } from '@/lib/forms/store';
+import { nowInPoolville, slotEnded } from '@/lib/meals/dropoff';
+import { EVENTS, type MealEvent } from '@/lib/meals/logic';
+import { getSlots } from '@/lib/meals/store';
 import { PROGRAMS } from '@/lib/programs';
 import { SITE } from '@/lib/site';
 
@@ -13,6 +16,16 @@ export default async function Home() {
   const hasContact = Boolean(SITE.email || SITE.facebookUrl);
   const forms = await getAllForms();
   const filled = await getFilledForLimited(forms);
+  // Holidays taking food donations right now: they have a drop-off time that has not ended.
+  const now = nowInPoolville();
+  const donating = (
+    await Promise.all(
+      (Object.keys(EVENTS) as MealEvent[]).map(async (event) => {
+        const slots = await getSlots(event).catch(() => []);
+        return slots.some((s) => !slotEnded(s, now)) ? event : null;
+      }),
+    )
+  ).filter((e): e is MealEvent => e !== null);
   const isOpen = (slug: string) => {
     const f = forms.find((x) => x.slug === slug);
     return f ? openState(f.config, undefined, filled[slug]) === 'open' : false;
@@ -28,6 +41,15 @@ export default async function Home() {
           <span className="wishlist-go">See the list ↗</span>
         </a>
       )}
+      {donating.map((event) => (
+        <Link key={event} className="wishlist" href={`/donate/${event}`}>
+          <span className="wishlist-text">
+            <strong>Bring food for {EVENTS[event].name} meals.</strong> See what families still need and pick a drop-off
+            time.
+          </span>
+          <span className="wishlist-go">Sign up to donate →</span>
+        </Link>
+      ))}
       <div className="hero">
         <div>
           <p className="eyebrow">{SITE.location}</p>

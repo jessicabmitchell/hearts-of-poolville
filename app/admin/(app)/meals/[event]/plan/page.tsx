@@ -21,6 +21,11 @@ export default async function MealPlanPage({ params }: { params: Promise<{ event
 
   return (
     <>
+      <p>
+        <Link className="textlink" href={`/admin/meals/${event}`}>
+          ← {EVENTS[event].name} meals
+        </Link>
+      </p>
       <div className="admin-title">
         <div>
           <h1>{EVENTS[event].name} meal plan</h1>

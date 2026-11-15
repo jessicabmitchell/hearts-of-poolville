@@ -22,19 +22,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     .filter((f) => !f.config.archived)
     .map((f) => ({ href: `/admin/forms/${f.slug}`, label: f.config.name, note: openLabel(f.config, filled[f.slug]).text }));
 
-  const meals = (Object.keys(EVENTS) as (keyof typeof EVENTS)[]).map((event) => {
-    const base = `/admin/meals/${event}`;
-    return {
-      title: `${EVENTS[event].name} meals`,
-      items: [
-        { href: base, label: 'Dashboard', exact: true },
-        { href: `${base}/inventory`, label: 'Inventory' },
-        { href: `${base}/plan`, label: 'Meal plan' },
-        { href: `${base}/pack`, label: 'Packing' },
-        { href: `${base}/pickup`, label: 'Pickup' },
-      ],
-    };
-  });
+  // One link per holiday; its dashboard links to Inventory, Meal plan, Packing, and Pickup.
+  const meals = [
+    {
+      title: 'Meals',
+      items: (Object.keys(EVENTS) as (keyof typeof EVENTS)[]).map((event) => ({
+        href: `/admin/meals/${event}`,
+        label: `${EVENTS[event].name} meals`,
+      })),
+    },
+  ];
 
   return (
     <div className="admin-shell">

@@ -192,6 +192,144 @@ grant execute on function public.pack_meal(uuid, jsonb, text) to service_role;
 grant execute on function public.unpack_meal(uuid, text) to service_role;
 grant execute on function public.set_pickup(uuid, text, boolean, boolean) to service_role;
 
+-- ---------------------------------------------------------------------------------------------
+-- Food donations: drop-off times and what donors promise to bring.
+-- ---------------------------------------------------------------------------------------------
+
+-- Drop-off times, in Poolville time.
+create table if not exists public.dropoff_slots (
+  id uuid primary key default gen_random_uuid(),
+  event text not null,
+  day date not null,
+  start_time text not null,                    -- 'HH:MM'
+  end_time text not null,                      -- 'HH:MM'
+  place text not null default '',
+  capacity int,                                -- most donors for this time, or null for no limit
+  created_at timestamptz not null default now()
+);
+
+-- One row per donor sign-up.
+create table if not exists public.pledges (
+  id uuid primary key default gen_random_uuid(),
+  event text not null,
+  number int not null,
+  code text not null,
+  slot_id uuid references public.dropoff_slots (id) on delete restrict,
+  name text not null,
+  phone text,
+  email text,
+  items jsonb not null default '{}'::jsonb,     -- item id -> how many they promised
+  other text,
+  language text not null default 'en' check (language in ('en', 'es')),
+  status text not null default 'promised' check (status in ('promised', 'received', 'cancelled')),
+  received jsonb,                               -- item id -> how many they actually brought
+  received_at timestamptz,
+  received_by text,
+  history jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now(),
+  unique (event, number)
+);
+
+alter table public.inventory_entries add column if not exists pledge_id uuid;
+
+alter table public.dropoff_slots enable row level security;
+alter table public.pledges enable row level security;
+
+create index if not exists dropoff_slots_event_idx on public.dropoff_slots (event, day, start_time);
+create index if not exists pledges_event_idx on public.pledges (event, number);
+
+-- Save a donor's promise, checking under a lock that the time is still open and has room, and
+-- that nobody has promised the same items first. p_available is what is still needed per item
+-- before any promises; p_now is the current Poolville time as 'YYYY-MM-DD HH:MM'.
+-- Returns {"code": "DN-001"} or {"error": "slot" | "full" | "too_many", ...}.
+create or replace function public.add_pledge(
+  p_event text, p_prefix text, p_slot uuid, p_name text, p_phone text, p_email text,
+  p_items jsonb, p_other text, p_lang text, p_available jsonb, p_now text
+)
+returns jsonb language plpgsql as $$
+declare
+  s public.dropoff_slots;
+  taken int;
+  k text;
+  v int;
+  used int;
+  left_over int;
+  n int;
+begin
+  perform pg_advisory_xact_lock(hashtext('pledges:' || p_event));
+  select * into s from public.dropoff_slots where id = p_slot and event = p_event;
+  if not found or (s.day::text || ' ' || s.end_time) <= p_now then
+    return jsonb_build_object('error', 'slot');
+  end if;
+  if s.capacity is not null then
+    select count(*) into taken from public.pledges where slot_id = s.id and status <> 'cancelled';
+    if taken >= s.capacity then return jsonb_build_object('error', 'full'); end if;
+  end if;
+  for k, v in select key, value::int from jsonb_each_text(p_items) loop
+    continue when v <= 0;
+    select coalesce(sum((p.items ->> k)::int), 0) into used
+      from public.pledges p join public.dropoff_slots d on d.id = p.slot_id
+      where p.event = p_event and p.status = 'promised' and (d.day::text || ' ' || d.end_time) > p_now;
+    left_over := coalesce((p_available ->> k)::int, 0) - used;
+    if v > left_over then
+      return jsonb_build_object('error', 'too_many', 'item', k, 'left', greatest(left_over, 0));
+    end if;
+  end loop;
+  select coalesce(max(number), 0) + 1 into n from public.pledges where event = p_event;
+  insert into public.pledges (event, number, code, slot_id, name, phone, email, items, other, language)
+    values (p_event, n, p_prefix || '-' || lpad(n::text, 3, '0'), p_slot, p_name, nullif(p_phone, ''),
+            nullif(p_email, ''), p_items, nullif(p_other, ''), p_lang);
+  return jsonb_build_object('code', p_prefix || '-' || lpad(n::text, 3, '0'));
+end $$;
+
+-- Check a donor in and add what they brought to inventory. Returns 'ok', 'missing', 'already',
+-- or 'cancelled'.
+create or replace function public.receive_pledge(p_id uuid, p_received jsonb, p_by text)
+returns text language plpgsql as $$
+declare
+  p public.pledges;
+begin
+  select * into p from public.pledges where id = p_id for update;
+  if not found then return 'missing'; end if;
+  if p.status = 'received' then return 'already'; end if;
+  if p.status = 'cancelled' then return 'cancelled'; end if;
+  update public.pledges
+    set status = 'received', received = p_received, received_at = now(), received_by = p_by,
+        history = history || jsonb_build_object('action', 'received', 'by', p_by, 'at', now())
+    where id = p_id;
+  insert into public.inventory_entries (event, item_id, change, reason, pledge_id, created_by)
+    select p.event, key, value::int, 'donation', p_id, p_by
+    from jsonb_each_text(p_received) where value::int > 0;
+  return 'ok';
+end $$;
+
+-- Undo a check-in and take those items back out of inventory. Returns 'ok', 'missing', or
+-- 'not_received'.
+create or replace function public.undo_receive(p_id uuid, p_by text)
+returns text language plpgsql as $$
+declare
+  p public.pledges;
+begin
+  select * into p from public.pledges where id = p_id for update;
+  if not found then return 'missing'; end if;
+  if p.status <> 'received' then return 'not_received'; end if;
+  insert into public.inventory_entries (event, item_id, change, reason, pledge_id, created_by)
+    select p.event, key, -(value::int), 'correction', p_id, p_by
+    from jsonb_each_text(coalesce(p.received, '{}'::jsonb)) where value::int > 0;
+  update public.pledges
+    set status = 'promised', received = null, received_at = null, received_by = null,
+        history = history || jsonb_build_object('action', 'check-in undone', 'by', p_by, 'at', now())
+    where id = p_id;
+  return 'ok';
+end $$;
+
+revoke all on function public.add_pledge(text, text, uuid, text, text, text, jsonb, text, text, jsonb, text) from public, anon, authenticated;
+revoke all on function public.receive_pledge(uuid, jsonb, text) from public, anon, authenticated;
+revoke all on function public.undo_receive(uuid, text) from public, anon, authenticated;
+grant execute on function public.add_pledge(text, text, uuid, text, text, text, jsonb, text, text, jsonb, text) to service_role;
+grant execute on function public.receive_pledge(uuid, jsonb, text) to service_role;
+grant execute on function public.undo_receive(uuid, text) to service_role;
+
 -- The one-time copy of responses from the site's original tables (help_requests, tag_pickups,
 -- dinner_applications, angel_tree_applications, help_offers) was removed after it ran, so running
 -- this file again cannot bring back a response you deleted. It is in the git history (commit

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import AutoRefresh from '@/components/AutoRefresh';
 import PickupMode from '@/components/admin/meals/PickupMode';
@@ -20,6 +21,11 @@ export default async function PickupPage({ params }: { params: Promise<{ event: 
 
   return (
     <>
+      <p>
+        <Link className="textlink" href={`/admin/meals/${event}`}>
+          ← {EVENTS[event].name} meals
+        </Link>
+      </p>
       <div className="admin-title">
         <div>
           <h1>{EVENTS[event].name} pickup</h1>

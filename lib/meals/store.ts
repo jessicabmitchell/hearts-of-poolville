@@ -1,6 +1,7 @@
 import 'server-only';
 import { getResponses } from '@/lib/forms/store';
 import { createAdminClient } from '@/lib/supabase/admin';
+import type { Pledge, Slot } from './dropoff';
 import { EVENTS, defaultPlan, familyFrom, normalizePlan, type Family, type Kit, type MealEvent, type MealPlan, type Stock } from './logic';
 
 export type StoredPlan = { plan: MealPlan; updatedAt: string | null; updatedBy: string | null };
@@ -65,4 +66,28 @@ export async function getEntries(event: MealEvent, limit = 40): Promise<Entry[]>
     .limit(limit);
   if (error) throw error;
   return (data ?? []) as Entry[];
+}
+
+// ---------- Donations ----------
+
+export async function getSlots(event: MealEvent): Promise<Slot[]> {
+  const { data, error } = await createAdminClient()
+    .from('dropoff_slots')
+    .select('*')
+    .eq('event', event)
+    .order('day')
+    .order('start_time');
+  if (error) throw error;
+  return (data ?? []) as Slot[];
+}
+
+export async function getPledges(event: MealEvent): Promise<Pledge[]> {
+  const { data, error } = await createAdminClient()
+    .from('pledges')
+    .select('*')
+    .eq('event', event)
+    .order('number')
+    .limit(5000);
+  if (error) throw error;
+  return (data ?? []) as Pledge[];
 }

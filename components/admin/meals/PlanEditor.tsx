@@ -108,8 +108,8 @@ export default function PlanEditor({ event, initial, neverSaved }: { event: stri
           <table className="plan-table">
             <thead>
               <tr>
-                <th>Item</th>
-                <th>Unit</th>
+                <th>Item (English / Español)</th>
+                <th>Unit (English / Español)</th>
                 {plan.tiers.map((t) => (
                   <th key={t.id}>{t.name}</th>
                 ))}
@@ -122,10 +122,26 @@ export default function PlanEditor({ event, initial, neverSaved }: { event: stri
               {plan.items.map((item, i) => (
                 <tr key={item.id}>
                   <td>
-                    <input aria-label="Item name" value={item.name} onChange={(e) => setItem(i, { ...item, name: e.target.value })} />
+                    <div className="stack">
+                      <input aria-label="Item name" value={item.name} onChange={(e) => setItem(i, { ...item, name: e.target.value })} />
+                      <input
+                        aria-label={`${item.name} in Spanish`}
+                        placeholder="Español"
+                        value={item.nameEs}
+                        onChange={(e) => setItem(i, { ...item, nameEs: e.target.value })}
+                      />
+                    </div>
                   </td>
                   <td>
-                    <input aria-label={`Unit for ${item.name}`} value={item.unit} placeholder="cans" onChange={(e) => setItem(i, { ...item, unit: e.target.value })} />
+                    <div className="stack">
+                      <input aria-label={`Unit for ${item.name}`} value={item.unit} placeholder="cans" onChange={(e) => setItem(i, { ...item, unit: e.target.value })} />
+                      <input
+                        aria-label={`Unit for ${item.name} in Spanish`}
+                        placeholder="latas"
+                        value={item.unitEs}
+                        onChange={(e) => setItem(i, { ...item, unitEs: e.target.value })}
+                      />
+                    </div>
                   </td>
                   {plan.tiers.map((t) => (
                     <td key={t.id}>
@@ -186,7 +202,14 @@ export default function PlanEditor({ event, initial, neverSaved }: { event: stri
                 ...plan,
                 items: [
                   ...plan.items,
-                  { id: `item_${Date.now().toString(36)}`, name: '', unit: '', qty: Object.fromEntries(plan.tiers.map((t) => [t.id, 0])) },
+                  {
+                    id: `item_${Date.now().toString(36)}`,
+                    name: '',
+                    unit: '',
+                    nameEs: '',
+                    unitEs: '',
+                    qty: Object.fromEntries(plan.tiers.map((t) => [t.id, 0])),
+                  },
                 ],
               })
             }

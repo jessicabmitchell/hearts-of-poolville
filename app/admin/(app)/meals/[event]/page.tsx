@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import AutoRefresh from '@/components/AutoRefresh';
 import { requireAdmin } from '@/lib/auth';
 import { EVENTS, isMealEvent } from '@/lib/meals/logic';
-import { getFamilies, getPlan, getStock } from '@/lib/meals/store';
+import { getFamilies, getPlan, getPledges, getSlots, getStock } from '@/lib/meals/store';
 import { summarize } from '@/lib/meals/summary';
 
 export default async function MealDashboard({ params }: { params: Promise<{ event: string }> }) {
@@ -13,8 +13,14 @@ export default async function MealDashboard({ params }: { params: Promise<{ even
 
   let data;
   try {
-    const [{ plan }, families, stock] = await Promise.all([getPlan(event), getFamilies(event), getStock(event)]);
-    data = summarize(event, plan, families, stock);
+    const [{ plan }, families, stock, slots, pledges] = await Promise.all([
+      getPlan(event),
+      getFamilies(event),
+      getStock(event),
+      getSlots(event),
+      getPledges(event),
+    ]);
+    data = summarize(event, plan, families, stock, slots, pledges);
   } catch (e) {
     console.error('meal dashboard failed', e);
     return (
@@ -58,6 +64,8 @@ export default async function MealDashboard({ params }: { params: Promise<{ even
       </div>
 
       <p className="fine kit-sizes">
+        Donors coming: <strong>{data.donorsComing}</strong> · received: <strong>{data.donorsReceived}</strong>
+        <br />
         Kits needed:{' '}
         {data.bySize.map(({ tier, count }, i) => (
           <span key={tier.id}>
@@ -87,6 +95,10 @@ export default async function MealDashboard({ params }: { params: Promise<{ even
         <Link className="card mode" href={`${base}/inventory`}>
           <h2>Inventory</h2>
           <p className="fine">Count donations as they come in, and see what is still needed.</p>
+        </Link>
+        <Link className="card mode" href={`${base}/donations`}>
+          <h2>Donations</h2>
+          <p className="fine">Drop-off times, who is bringing what, and check-in when they arrive.</p>
         </Link>
         <Link className="card mode" href={`${base}/plan`}>
           <h2>Meal plan</h2>

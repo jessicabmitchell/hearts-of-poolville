@@ -172,3 +172,121 @@ export async function setPickup(
   if (data !== 'ok') return fail('That family could not be found.');
   return { ok: true };
 }
+
+// ---------- Donations ----------
+
+export type SlotInput = {
+  id?: string;
+  day: string;
+  start_time: string;
+  end_time: string;
+  place: string;
+  capacity: number | null;
+};
+
+export async function saveSlot(eventName: string, slot: SlotInput): Promise<MealResult> {
+  await requireAdmin();
+  const event = eventOf(eventName);
+  const time = /^([01]\d|2[0-3]):[0-5]\d$/;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(slot.day)) return fail('Choose a date.');
+  if (!time.test(slot.start_time) || !time.test(slot.end_time)) return fail('Enter a start and end time.');
+  if (slot.end_time <= slot.start_time) return fail('The end time needs to be after the start time.');
+  const capacity = slot.capacity && slot.capacity > 0 ? Math.min(Math.round(slot.capacity), 10000) : null;
+  const row = {
+    event,
+    day: slot.day,
+    start_time: slot.start_time,
+    end_time: slot.end_time,
+    place: String(slot.place ?? '').trim().slice(0, 200),
+    capacity,
+  };
+  const db = createAdminClient();
+  const { error } = slot.id
+    ? await db.from('dropoff_slots').update(row).eq('id', slot.id).eq('event', event)
+    : await db.from('dropoff_slots').insert(row);
+  if (error) {
+    console.error('saveSlot failed', error);
+    return fail(TRY_AGAIN);
+  }
+  refresh(event);
+  revalidatePath(`/donate/${event}`);
+  revalidatePath('/');
+  return { ok: true };
+}
+
+export async function deleteSlot(eventName: string, slotId: string): Promise<MealResult> {
+  await requireAdmin();
+  const event = eventOf(eventName);
+  const db = createAdminClient();
+  const { count } = await db.from('pledges').select('id', { count: 'exact', head: true }).eq('slot_id', slotId);
+  if (count) return fail('Donors are signed up for this time. Move them to another time first.');
+  const { error } = await db.from('dropoff_slots').delete().eq('id', slotId).eq('event', event);
+  if (error) return fail(TRY_AGAIN);
+  refresh(event);
+  return { ok: true };
+}
+
+export async function receivePledge(eventName: string, pledgeId: string, received: Record<string, number>): Promise<MealResult> {
+  const user = await requireAdmin();
+  const event = eventOf(eventName);
+  const { plan } = await getPlan(event);
+  const clean: Record<string, number> = {};
+  for (const item of plan.items) {
+    const n = Math.round(Number(received[item.id]));
+    if (Number.isFinite(n) && n > 0) clean[item.id] = Math.min(n, 9999);
+  }
+  const { data, error } = await createAdminClient().rpc('receive_pledge', {
+    p_id: pledgeId,
+    p_received: clean,
+    p_by: user.email ?? 'unknown',
+  });
+  if (error) {
+    console.error('receivePledge failed', error);
+    return fail(TRY_AGAIN);
+  }
+  refresh(event);
+  if (data === 'already') return fail('Someone already checked this donor in.');
+  if (data === 'cancelled') return fail('This sign-up was cancelled. Restore it first.');
+  if (data !== 'ok') return fail('That sign-up could not be found.');
+  return { ok: true };
+}
+
+export async function undoReceive(eventName: string, pledgeId: string): Promise<MealResult> {
+  const user = await requireAdmin();
+  const event = eventOf(eventName);
+  const { data, error } = await createAdminClient().rpc('undo_receive', { p_id: pledgeId, p_by: user.email ?? 'unknown' });
+  if (error) return fail(TRY_AGAIN);
+  refresh(event);
+  if (data !== 'ok') return fail('This donor was not checked in.');
+  return { ok: true };
+}
+
+/** Cancel a promise (it stops counting as committed) or bring a cancelled one back. */
+export async function setPledgeCancelled(eventName: string, pledgeId: string, cancelled: boolean): Promise<MealResult> {
+  await requireAdmin();
+  const event = eventOf(eventName);
+  const { data, error } = await createAdminClient()
+    .from('pledges')
+    .update({ status: cancelled ? 'cancelled' : 'promised' })
+    .eq('id', pledgeId)
+    .eq('event', event)
+    .eq('status', cancelled ? 'promised' : 'cancelled')
+    .select('id');
+  if (error) return fail(TRY_AGAIN);
+  refresh(event);
+  revalidatePath(`/donate/${event}`);
+  if (!data?.length) return fail('That sign-up has changed. Reload the page.');
+  return { ok: true };
+}
+
+export async function movePledge(eventName: string, pledgeId: string, slotId: string): Promise<MealResult> {
+  await requireAdmin();
+  const event = eventOf(eventName);
+  const db = createAdminClient();
+  const { data: slot } = await db.from('dropoff_slots').select('id').eq('id', slotId).eq('event', event).maybeSingle();
+  if (!slot) return fail('Choose a drop-off time.');
+  const { error } = await db.from('pledges').update({ slot_id: slotId }).eq('id', pledgeId).eq('event', event);
+  if (error) return fail(TRY_AGAIN);
+  refresh(event);
+  return { ok: true };
+}
