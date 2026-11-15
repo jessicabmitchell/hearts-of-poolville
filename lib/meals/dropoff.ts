@@ -61,14 +61,24 @@ export function slotLabel(s: Slot, lang: 'en' | 'es' = 'en'): string {
 }
 
 /**
+ * Whether a promise still counts: not received or cancelled, and either its drop-off time has not
+ * passed or it has no set time (a volunteer recorded it without one).
+ */
+export function stillComing(p: Pledge, slots: Slot[], now: string): boolean {
+  if (p.status !== 'promised') return false;
+  if (!p.slot_id) return true;
+  const slot = slots.find((s) => s.id === p.slot_id);
+  return Boolean(slot && !slotEnded(slot, now));
+}
+
+/**
  * Items promised and not delivered yet, by item id. Promises whose drop-off time has passed no
  * longer count, so those items show as needed again.
  */
 export function committed(pledges: Pledge[], slots: Slot[], now: string): Stock {
-  const open = new Set(slots.filter((s) => !slotEnded(s, now)).map((s) => s.id));
   const out: Stock = {};
   for (const p of pledges) {
-    if (p.status !== 'promised' || !p.slot_id || !open.has(p.slot_id)) continue;
+    if (!stillComing(p, slots, now)) continue;
     for (const [id, n] of Object.entries(p.items ?? {})) out[id] = (out[id] ?? 0) + (Number(n) || 0);
   }
   return out;

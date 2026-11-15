@@ -239,8 +239,9 @@ create index if not exists dropoff_slots_event_idx on public.dropoff_slots (even
 create index if not exists pledges_event_idx on public.pledges (event, number);
 
 -- Save a donor's promise, checking under a lock that the time is still open and has room, and
--- that nobody has promised the same items first. p_available is what is still needed per item
--- before any promises; p_now is the current Poolville time as 'YYYY-MM-DD HH:MM'.
+-- that nobody has promised the same items first. p_slot may be null for a promise a volunteer
+-- recorded without a drop-off time. p_available is what is still needed per item before any
+-- promises; p_now is the current Poolville time as 'YYYY-MM-DD HH:MM'.
 -- Returns {"code": "DN-001"} or {"error": "slot" | "full" | "too_many", ...}.
 create or replace function public.add_pledge(
   p_event text, p_prefix text, p_slot uuid, p_name text, p_phone text, p_email text,
@@ -257,19 +258,22 @@ declare
   n int;
 begin
   perform pg_advisory_xact_lock(hashtext('pledges:' || p_event));
-  select * into s from public.dropoff_slots where id = p_slot and event = p_event;
-  if not found or (s.day::text || ' ' || s.end_time) <= p_now then
-    return jsonb_build_object('error', 'slot');
-  end if;
-  if s.capacity is not null then
-    select count(*) into taken from public.pledges where slot_id = s.id and status <> 'cancelled';
-    if taken >= s.capacity then return jsonb_build_object('error', 'full'); end if;
+  if p_slot is not null then
+    select * into s from public.dropoff_slots where id = p_slot and event = p_event;
+    if not found or (s.day::text || ' ' || s.end_time) <= p_now then
+      return jsonb_build_object('error', 'slot');
+    end if;
+    if s.capacity is not null then
+      select count(*) into taken from public.pledges where slot_id = s.id and status <> 'cancelled';
+      if taken >= s.capacity then return jsonb_build_object('error', 'full'); end if;
+    end if;
   end if;
   for k, v in select key, value::int from jsonb_each_text(p_items) loop
     continue when v <= 0;
     select coalesce(sum((p.items ->> k)::int), 0) into used
-      from public.pledges p join public.dropoff_slots d on d.id = p.slot_id
-      where p.event = p_event and p.status = 'promised' and (d.day::text || ' ' || d.end_time) > p_now;
+      from public.pledges p left join public.dropoff_slots d on d.id = p.slot_id
+      where p.event = p_event and p.status = 'promised'
+        and (p.slot_id is null or (d.day::text || ' ' || d.end_time) > p_now);
     left_over := coalesce((p_available ->> k)::int, 0) - used;
     if v > left_over then
       return jsonb_build_object('error', 'too_many', 'item', k, 'left', greatest(left_over, 0));

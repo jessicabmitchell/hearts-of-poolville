@@ -144,7 +144,7 @@ function PledgeRow({ event, p, items, slots, ended }: { event: string; p: Pledge
               aria-label="Move to another drop-off time"
               onChange={(e) => e.target.value && run(() => movePledge(event, p.id, e.target.value))}
             >
-              <option value="">Move to…</option>
+              <option value="">{p.slot_id ? 'Move to…' : 'Set a drop-off time…'}</option>
               {slots
                 .filter((s) => s.id !== p.slot_id)
                 .map((s) => (
@@ -220,6 +220,8 @@ export default function DonationsList({
     .filter((s) => needle || show === 'all' || !s.ended)
     .map((s) => ({ slot: s, list: pledges.filter((p) => p.slot_id === s.id && match(p)) }))
     .filter((g) => g.list.length > 0 || (!needle && !g.slot.ended));
+  // Promises a volunteer recorded without a drop-off time. Received ones only show with "All times".
+  const noTime = pledges.filter((p) => !p.slot_id && match(p) && (needle || show === 'all' || p.status === 'promised'));
 
   return (
     <>
@@ -230,7 +232,20 @@ export default function DonationsList({
           <option value="all">All times, including past</option>
         </select>
       </div>
-      {groups.length === 0 ? (
+      {noTime.length > 0 && (
+        <section className="slot-group">
+          <h3>
+            No drop-off time set
+            <span className="fine"> · {noTime.filter((p) => p.status === 'promised').length} still coming</span>
+          </h3>
+          <ul className="pickup-list">
+            {noTime.map((p) => (
+              <PledgeRow key={`${p.id}-${p.status}-${p.slot_id}`} event={event} p={p} items={items} slots={slots.filter((s) => !s.ended)} ended={false} />
+            ))}
+          </ul>
+        </section>
+      )}
+      {groups.length === 0 && noTime.length === 0 ? (
         <p className="empty">{needle ? 'No one matches that search.' : 'No upcoming drop-off times. Add one above.'}</p>
       ) : (
         groups.map(({ slot, list }) => (

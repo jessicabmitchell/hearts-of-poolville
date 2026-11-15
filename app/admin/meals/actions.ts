@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { requireAdmin } from '@/lib/auth';
-import { isMealEvent, kitFor, normalizePlan, tierFor, type MealEvent } from '@/lib/meals/logic';
+import { nowInPoolville } from '@/lib/meals/dropoff';
+import { EVENTS, isMealEvent, kitFor, normalizePlan, tierFor, type MealEvent } from '@/lib/meals/logic';
 import { getFamilies, getPlan, savePlan } from '@/lib/meals/store';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -288,5 +289,51 @@ export async function movePledge(eventName: string, pledgeId: string, slotId: st
   const { error } = await db.from('pledges').update({ slot_id: slotId }).eq('id', pledgeId).eq('event', event);
   if (error) return fail(TRY_AGAIN);
   refresh(event);
+  return { ok: true };
+}
+
+/**
+ * Record a promise a donor made in person or by phone, from the Inventory page. It is saved like an
+ * online sign-up, so it shows on the Donations page and can be checked in. The drop-off time is
+ * optional; a promise without one counts until it is received or cancelled. Volunteers may record
+ * more than is still needed; a full drop-off time is still refused.
+ */
+export async function addPromise(
+  eventName: string,
+  input: { itemId: string; qty: number; name: string; phone: string; slotId: string | null },
+): Promise<MealResult> {
+  await requireAdmin();
+  const event = eventOf(eventName);
+  const qty = Math.round(Number(input.qty));
+  const name = String(input.name ?? '').trim().slice(0, 100);
+  const phone = String(input.phone ?? '').trim().slice(0, 40);
+  if (!Number.isInteger(qty) || qty < 1 || qty > 9999) return fail('Enter how many they will bring.');
+  if (!name) return fail("Enter the donor's name.");
+  const { plan } = await getPlan(event);
+  if (!plan.items.some((i) => i.id === input.itemId)) return fail('That item is not on the meal plan.');
+
+  const { data, error } = await createAdminClient().rpc('add_pledge', {
+    p_event: event,
+    p_prefix: EVENTS[event].donationPrefix,
+    p_slot: input.slotId || null,
+    p_name: name,
+    p_phone: phone,
+    p_email: '',
+    p_items: { [input.itemId]: qty },
+    p_other: '',
+    p_lang: 'en',
+    p_available: { [input.itemId]: 1_000_000 },
+    p_now: nowInPoolville(),
+  });
+  if (error) {
+    console.error('addPromise failed', error);
+    return fail(TRY_AGAIN);
+  }
+  const result = data as { code?: string; error?: string };
+  if (result.error === 'slot') return fail('That drop-off time has ended. Choose another.');
+  if (result.error === 'full') return fail('That drop-off time is full. Choose another or raise its limit.');
+  if (!result.code) return fail(TRY_AGAIN);
+  refresh(event);
+  revalidatePath(`/donate/${event}`);
   return { ok: true };
 }

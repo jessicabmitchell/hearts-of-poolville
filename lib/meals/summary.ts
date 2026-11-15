@@ -1,4 +1,4 @@
-import { committed, nowInPoolville, slotEnded, type Pledge, type Slot } from './dropoff';
+import { committed, nowInPoolville, slotEnded, stillComing, type Pledge, type Slot } from './dropoff';
 import { EVENTS, stillNeeded, tierFor, type Family, type MealEvent, type MealPlan, type Stock } from './logic';
 
 export type Attention = { tone: 'warn' | 'info'; text: string; href?: string };
@@ -21,7 +21,7 @@ export function summarize(
   const base = `/admin/meals/${event}`;
   const promised = committed(pledges, slots, now);
   const ended = new Set(slots.filter((s) => slotEnded(s, now)).map((s) => s.id));
-  const donorsComing = pledges.filter((p) => p.status === 'promised' && p.slot_id && !ended.has(p.slot_id)).length;
+  const donorsComing = pledges.filter((p) => stillComing(p, slots, now)).length;
   const donorsReceived = pledges.filter((p) => p.status === 'received').length;
 
   const attention: Attention[] = [];

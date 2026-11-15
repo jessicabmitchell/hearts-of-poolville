@@ -4,7 +4,7 @@ import AutoRefresh from '@/components/AutoRefresh';
 import DonationsList from '@/components/admin/meals/DonationsList';
 import SlotsEditor from '@/components/admin/meals/SlotsEditor';
 import { requireAdmin } from '@/lib/auth';
-import { nowInPoolville, slotEnded, slotLabel, takenIn } from '@/lib/meals/dropoff';
+import { nowInPoolville, slotEnded, slotLabel, stillComing, takenIn } from '@/lib/meals/dropoff';
 import { EVENTS, isMealEvent } from '@/lib/meals/logic';
 import { getPlan, getPledges, getSlots } from '@/lib/meals/store';
 
@@ -27,7 +27,7 @@ export default async function DonationsPage({ params }: { params: Promise<{ even
   const now = nowInPoolville();
   const today = now.slice(0, 10);
   const ended = new Set(slots.filter((s) => slotEnded(s, now)).map((s) => s.id));
-  const promised = pledges.filter((p) => p.status === 'promised' && p.slot_id && !ended.has(p.slot_id)).length;
+  const promised = pledges.filter((p) => stillComing(p, slots, now)).length;
   const received = pledges.filter((p) => p.status === 'received').length;
   const noShow = pledges.filter((p) => p.status === 'promised' && p.slot_id && ended.has(p.slot_id)).length;
   const publicPath = `/donate/${event}`;
@@ -71,7 +71,8 @@ export default async function DonationsPage({ params }: { params: Promise<{ even
         <h2>Drop-off times</h2>
         <p className="fine">
           Donors choose one of these. Times that have ended or are full disappear from the public page. Promises from a
-          time that has ended without a check-in stop counting as committed.
+          time that has ended without a check-in stop counting as committed. Promises recorded on the Inventory page
+          without a time keep counting until they are checked off or cancelled.
         </p>
         <SlotsEditor event={event} slots={slots} signedUp={Object.fromEntries(slots.map((s) => [s.id, takenIn(pledges, s.id)]))} />
       </section>

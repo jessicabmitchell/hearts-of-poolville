@@ -2,12 +2,131 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition } from 'react';
-import { changeStock, undoEntry } from '@/app/admin/meals/actions';
+import { addPromise, changeStock, receivePledge, undoEntry } from '@/app/admin/meals/actions';
 import { tryAction } from './tryAction';
 import type { KitItem } from '@/lib/meals/logic';
 
 /** `committed` is what donors promised and have not brought yet. */
 type Row = { item: KitItem; onHand: number; needed: number; committed: number };
+type SlotOption = { id: string; label: string };
+
+/** A promise that includes this item and has not been received yet. */
+export type OpenPromise = {
+  id: string;
+  code: string;
+  name: string;
+  qty: number;
+  /** Everything on the promise, so checking it off receives all of it. */
+  items: Record<string, number>;
+  /** "Sat, Nov 21 · 10:00 AM", or empty when no time is set. */
+  when: string;
+};
+
+/** Promises for one item, each with a button to check it off when it arrives. */
+function OpenPromises({ event, item, promises, onMessage }: { event: string; item: KitItem; promises: OpenPromise[]; onMessage: (error: boolean, text: string) => void }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  return (
+    <ul className="open-promises">
+      {promises.map((p) => {
+        const others = Object.keys(p.items).filter((id) => id !== item.id && p.items[id] > 0).length;
+        return (
+          <li key={p.id}>
+            <span>
+              <strong>{p.qty}</strong> from {p.name} <span className="fine">· {p.code} · {p.when || 'no set time'}</span>
+              {others > 0 && <span className="fine"> · also promised {others} other item{others === 1 ? '' : 's'}</span>}
+            </span>
+            <button
+              type="button"
+              className="btn primary small"
+              disabled={pending}
+              onClick={() =>
+                start(async () => {
+                  const r = await tryAction(() => receivePledge(event, p.id, p.items));
+                  onMessage(!r.ok, r.ok ? `Got it: ${p.name}'s promise (${p.code}) added to inventory.` : r.message);
+                  router.refresh();
+                })
+              }
+            >
+              {others > 0 ? 'Got all of it' : 'Got it'}
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** Record a promise someone made in person or by phone. */
+function PromiseForm({ event, item, slots, onDone }: { event: string; item: KitItem; slots: SlotOption[]; onDone: (text: string) => void }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [qty, setQty] = useState('1');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [slotId, setSlotId] = useState('');
+  const [error, setError] = useState('');
+
+  return (
+    <form
+      className="promise-form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        start(async () => {
+          const r = await tryAction(() =>
+            addPromise(event, { itemId: item.id, qty: Number.parseInt(qty, 10), name, phone, slotId: slotId || null }),
+          );
+          if (!r.ok) {
+            setError(r.message);
+            return;
+          }
+          router.refresh();
+          onDone(`Promise saved: ${name} will bring ${qty} ${item.name}.`);
+        });
+      }}
+    >
+      <p className="fine">
+        Someone promised to bring {item.name.toLowerCase()}. It counts as committed until you check it off here or on the
+        Donations page.
+      </p>
+      <div className="promise-fields">
+        <label className="field">
+          <span className="bi-label">How many</span>
+          <input type="number" min={1} inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value)} required />
+        </label>
+        <label className="field">
+          <span className="bi-label">Donor&apos;s name</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} required />
+        </label>
+        <label className="field">
+          <span className="bi-label">Phone (optional)</span>
+          <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+        </label>
+        <label className="field">
+          <span className="bi-label">Drop-off time (optional)</span>
+          <select value={slotId} onChange={(e) => setSlotId(e.target.value)}>
+            <option value="">No set time</option>
+            {slots.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      {error && <p className="error">{error}</p>}
+      <div className="tools">
+        <button type="submit" className="btn primary small" disabled={pending}>
+          {pending ? 'Saving…' : 'Save promise'}
+        </button>
+        <button type="button" className="btn ghost small" onClick={() => onDone('')}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
 type EntryView = { id: number; itemName: string; change: number; reason: string; who: string; when: string; canUndo: boolean };
 
 const REASONS: Record<string, string> = {
@@ -23,10 +142,16 @@ export default function InventoryCounter({
   rows,
   entries,
   loadedAt,
+  slots,
+  promises,
 }: {
   event: string;
   rows: Row[];
   entries: EntryView[];
+  /** Drop-off times that have not ended, for recording promises. */
+  slots: SlotOption[];
+  /** Open promises by item id. */
+  promises: Record<string, OpenPromise[]>;
   /** When the page read the totals, to tell whether a total sent back by a save is newer. */
   loadedAt: number;
 }) {
@@ -44,6 +169,7 @@ export default function InventoryCounter({
   const [custom, setCustom] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<{ error: boolean; text: string } | null>(null);
   const [filter, setFilter] = useState('');
+  const [promiseFor, setPromiseFor] = useState<string | null>(null);
 
   const add = async (item: KitItem, change: number, reason: 'donation' | 'correction') => {
     setInFlight((f) => ({ ...f, [item.id]: (f[item.id] ?? 0) + change }));
@@ -109,11 +235,9 @@ export default function InventoryCounter({
                 </span>
               </div>
               <div className="inv-buttons">
-                {[1, 5, 10].map((k) => (
-                  <button key={k} type="button" className="btn primary tap" onClick={() => add(item, k, 'donation')}>
-                    +{k}
-                  </button>
-                ))}
+                <button type="button" className="btn primary tap" onClick={() => add(item, 1, 'donation')} aria-label={`Add 1 ${item.name}`}>
+                  +1
+                </button>
                 <button type="button" className="btn ghost tap" onClick={() => add(item, -1, 'correction')} aria-label={`Take 1 ${item.name} off`}>
                   −1
                 </button>
@@ -138,7 +262,29 @@ export default function InventoryCounter({
                     Add
                   </button>
                 </form>
+                <button type="button" className="btn ghost tap" onClick={() => setPromiseFor(promiseFor === item.id ? null : item.id)}>
+                  + Promise
+                </button>
               </div>
+              {(promises[item.id] ?? []).length > 0 && (
+                <OpenPromises
+                  event={event}
+                  item={item}
+                  promises={promises[item.id]}
+                  onMessage={(error, text) => setMessage({ error, text })}
+                />
+              )}
+              {promiseFor === item.id && (
+                <PromiseForm
+                  event={event}
+                  item={item}
+                  slots={slots}
+                  onDone={(text) => {
+                    setPromiseFor(null);
+                    if (text) setMessage({ error: false, text });
+                  }}
+                />
+              )}
             </div>
           );
         })}

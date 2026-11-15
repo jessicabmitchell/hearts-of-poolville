@@ -1410,6 +1410,61 @@ details.danger summary {
   width: 84px;
 }
 
+.open-promises {
+  grid-column: 1 / -1;
+  list-style: none;
+  margin: 0;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 6px;
+}
+
+.open-promises li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.promise-form {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.promise-form p {
+  margin: 0;
+}
+
+.promise-fields {
+  display: grid;
+  grid-template-columns: 110px minmax(140px, 1fr) minmax(130px, 1fr) minmax(200px, 1.4fr);
+  gap: 10px;
+}
+
+.promise-form input,
+.promise-form select {
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+  .promise-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
 .pack-card {
   gap: 16px;
 }
