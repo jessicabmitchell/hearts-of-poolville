@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import './globals.css';
 import { SITE } from '@/lib/site';
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
   title: {
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <span>Neighbors helping neighbors.</span>
           </footer>
         </div>
+        <Analytics />
       </body>
     </html>
   );
