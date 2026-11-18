@@ -35,6 +35,13 @@ each form's registrations:
   Promises from a time that ended without a check-in stop counting, so those items show as needed
   again. The home page links to the donation page while drop-off times are open.
 
+### Angel Tree tags
+
+**Angels & tags** in the admin menu gives every child on the Angel Tree form an ID (A1, A2, ...), in the order families signed up. IDs are never reused, so a printed tag always means the same
+child. Put the ID on each tag. When someone fills out the tag form with the ID, it is matched to the
+angel on its own; anything unclear shows under Tag forms to match, where a volunteer types the IDs.
+The IDs also show on each Angel Tree response and in its spreadsheet download.
+
 ## Set up
 
 1. **Create a Supabase project** at supabase.com.

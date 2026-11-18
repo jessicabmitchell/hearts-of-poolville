@@ -5,6 +5,8 @@ import { getForm, getResponse } from '@/lib/forms/store';
 import type { Answer, Question } from '@/lib/forms/types';
 import { deleteResponse, updateStatus } from '@/app/admin/actions';
 import { requireAdmin } from '@/lib/auth';
+import { ANGEL_FORM } from '@/lib/angels/logic';
+import { getAngelCodes } from '@/lib/angels/store';
 
 const dateFmt = new Intl.DateTimeFormat('en-US', {
   timeZone: 'America/Chicago',
@@ -38,6 +40,15 @@ export default async function ResponsePage({ params }: { params: Promise<{ slug:
   const c = form.config;
   const a = response.answers ?? {};
   const statuses = Array.from(new Set([...c.statuses, response.status]));
+  // Each child's angel ID, on Angel Tree sign-ups.
+  let codes: Record<number, string> = {};
+  if (slug === ANGEL_FORM) {
+    try {
+      codes = (await getAngelCodes(c, [response.id]))[response.id] ?? {};
+    } catch (e) {
+      console.error('angel codes failed', e);
+    }
+  }
 
   // Answers to questions that have since been removed from the form.
   const known = new Set(c.sections.flatMap((s) => [s.id, ...s.questions.flatMap((q) => [q.id, otherName(q.id)])]));
@@ -82,6 +93,7 @@ export default async function ResponsePage({ params }: { params: Promise<{ slug:
             <section key={`${s.id}-${i}`} className="card answer-card">
               <h2>
                 {s.title.en || s.repeat!.itemLabel.en} {i + 1}
+                {codes[i] && <span className="pill tone-open angel-id">{codes[i]}</span>}
               </h2>
               <Answers questions={s.questions} values={item} />
             </section>

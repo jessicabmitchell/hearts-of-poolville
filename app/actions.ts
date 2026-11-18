@@ -2,6 +2,8 @@
 
 import { dict, toLang } from '@/lib/i18n';
 import { openState, readAnswers, tx, type RawValues } from '@/lib/forms/logic';
+import { TAG_FORM, TAG_QUESTION } from '@/lib/angels/logic';
+import { linkTags } from '@/lib/angels/store';
 import { addResponse, getFilled, getForm } from '@/lib/forms/store';
 import type { FormState } from '@/lib/types';
 
@@ -44,11 +46,17 @@ export async function submitForm(_prev: FormState, formData: FormData): Promise<
   );
   if (error) return { status: 'error', message: error, values };
 
+  let id;
   try {
-    await addResponse({ form_slug: slug, language: lang, status: form.config.statuses[0], answers });
+    id = await addResponse({ form_slug: slug, language: lang, status: form.config.statuses[0], answers });
   } catch (e) {
     console.error('submitForm failed', slug, e);
     return { status: 'error', message: err.saveFailed, values };
+  }
+  // Match the tag to its angel right away when the tag number is clear. Anything unclear is left
+  // for a volunteer on the Angels page, and a problem here never stops the form from saving.
+  if (slug === TAG_FORM && typeof answers[TAG_QUESTION] === 'string') {
+    await linkTags(id, answers[TAG_QUESTION] as string, 'tag form').catch((e) => console.error('auto tag match failed', e));
   }
   return { status: 'ok' };
 }

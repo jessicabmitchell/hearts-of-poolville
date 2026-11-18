@@ -295,8 +295,8 @@ export const DEFAULT_FORMS: Record<string, FormConfig> = {
           required: true,
           inList: true,
           help: t(
-            'Enter the number or name written on the tag. If you took more than one, list them all.',
-            'Escriba el número o el nombre que aparece en la etiqueta. Si tomó más de una, escríbalas todas.',
+            'Enter the angel ID printed on the tag, like A12. If you took more than one, list them all.',
+            'Escriba el número de ángel que aparece en la etiqueta, por ejemplo A12. Si tomó más de una, escríbalas todas.',
           ),
         }),
         nameQ(),

@@ -1,4 +1,6 @@
 import { requireAdmin } from '@/lib/auth';
+import { ANGEL_FORM } from '@/lib/angels/logic';
+import { getAngelCodes } from '@/lib/angels/store';
 import { sheet } from '@/lib/forms/results';
 import { getForm, getResponses } from '@/lib/forms/store';
 
@@ -26,7 +28,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
   const status = new URL(request.url).searchParams.get('status');
   if (status) rows = rows.filter((r) => r.status === status);
 
-  const lines = sheet(form.config, rows).map((row) => row.map(cell).join(','));
+  // Angel Tree downloads get each child's angel ID, for making tags.
+  let ids;
+  if (slug === ANGEL_FORM) {
+    try {
+      ids = { label: 'Angel ID', byResponse: await getAngelCodes(form.config) };
+    } catch (e) {
+      console.error('angel codes failed', e);
+    }
+  }
+  const lines = sheet(form.config, rows, ids).map((row) => row.map(cell).join(','));
   // The byte-order mark helps Excel open accented letters (Spanish answers) correctly.
   return new Response(`﻿${lines.join('\r\n')}`, {
     headers: {

@@ -854,7 +854,8 @@ td.nowrap {
 .editor textarea,
 .editor select,
 .admin-main .form input[type='text'],
-.inv-custom input {
+.inv-custom input,
+.tag-match input {
   font: inherit;
   font-size: 0.95rem;
   color: var(--fg);
@@ -1817,4 +1818,64 @@ select.move {
       color 0.15s,
       border-color 0.15s;
   }
+}
+
+/* ---------- Angels & tags ---------- */
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 18px;
+}
+
+.tag-row > div {
+  flex: 1 1 300px;
+}
+
+.tag-row p {
+  margin: 0 0 4px;
+}
+
+.tag-match {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.tag-match input {
+  width: 160px;
+}
+
+.tag-msg {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.angel-id {
+  margin-left: 10px;
+  vertical-align: middle;
+}
+
+@media (max-width: 600px) {
+  .tag-match {
+    width: 100%;
+  }
+  .tag-match input {
+    flex: 1;
+    width: auto;
+  }
+}
+
+.show-all {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 14px;
+  font-size: 0.95rem;
 }

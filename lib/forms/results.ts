@@ -56,8 +56,15 @@ export function listColumns(c: FormConfig): Column[] {
 /** The first repeating section, which gets one spreadsheet row per copy (one per child, and so on). */
 export const firstRepeat = (c: FormConfig) => c.sections.find((s) => s.repeat) ?? null;
 
-/** Header and rows for a spreadsheet download of every answer. */
-export function sheet(c: FormConfig, rows: ResponseRow[]): string[][] {
+/**
+ * Header and rows for a spreadsheet download of every answer. `ids` adds an ID column for each
+ * copy of the repeating part (each child's angel ID), as response id → place on the form → ID.
+ */
+export function sheet(
+  c: FormConfig,
+  rows: ResponseRow[],
+  ids?: { label: string; byResponse: Record<string, Record<number, string>> },
+): string[][] {
   const repeat = firstRepeat(c);
   const top = c.sections.filter((s) => !s.repeat).flatMap((s) => s.questions.map((q) => single(q, s)));
   // Any other repeating sections are squeezed into one cell per question.
@@ -90,7 +97,7 @@ export function sheet(c: FormConfig, rows: ResponseRow[]): string[][] {
     'Language',
     ...top.map(nameOf),
     ...extra.map(nameOf),
-    ...(repeat ? [`${repeat.repeat!.itemLabel.en} #`, ...inner.map(nameOf)] : []),
+    ...(repeat ? [`${repeat.repeat!.itemLabel.en} #`, ...(ids ? [ids.label] : []), ...inner.map(nameOf)] : []),
   ];
 
   const out: string[][] = [header];
@@ -105,8 +112,16 @@ export function sheet(c: FormConfig, rows: ResponseRow[]): string[][] {
     ];
     const list = repeat ? items(a, repeat) : [];
     if (!repeat) out.push(shared);
-    else if (list.length === 0) out.push([...shared, '', ...inner.map(() => '')]);
-    else list.forEach((it, i) => out.push([...shared, String(i + 1), ...inner.map((col) => col.value(a, it))]));
+    else if (list.length === 0) out.push([...shared, '', ...(ids ? [''] : []), ...inner.map(() => '')]);
+    else
+      list.forEach((it, i) =>
+        out.push([
+          ...shared,
+          String(i + 1),
+          ...(ids ? [ids.byResponse[r.id]?.[i] ?? ''] : []),
+          ...inner.map((col) => col.value(a, it)),
+        ]),
+      );
   }
   return out;
 }

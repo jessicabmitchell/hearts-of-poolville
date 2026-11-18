@@ -166,9 +166,11 @@ export async function getFilledForLimited(forms: StoredForm[]): Promise<Record<s
 
 // ---------- Responses ----------
 
-export async function addResponse(row: Omit<ResponseRow, 'id' | 'created_at'>): Promise<void> {
-  const { error } = await createAdminClient().from('responses').insert(row);
+/** Save a response and send back its id. */
+export async function addResponse(row: Omit<ResponseRow, 'id' | 'created_at'>): Promise<string> {
+  const { data, error } = await createAdminClient().from('responses').insert(row).select('id').single();
   if (error) throw error;
+  return data.id as string;
 }
 
 export async function getResponses(slug: string): Promise<ResponseRow[]> {

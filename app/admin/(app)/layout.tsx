@@ -31,6 +31,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         label: `${EVENTS[event].name} meals`,
       })),
     },
+    { title: 'Angel Tree', items: [{ href: '/admin/angels', label: 'Angels & tags' }] },
   ];
 
   return (

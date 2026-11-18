@@ -338,3 +338,51 @@ grant execute on function public.undo_receive(uuid, text) to service_role;
 -- dinner_applications, angel_tree_applications, help_offers) was removed after it ran, so running
 -- this file again cannot bring back a response you deleted. It is in the git history (commit
 -- 25545e7) if it is ever needed.
+
+-- ---------------------------------------------------------------------------------------------
+-- Angel Tree: an ID for every child (A1, A2, ...) and which tag form took their tag.
+-- ---------------------------------------------------------------------------------------------
+
+-- One row per child on an Angel Tree sign-up. "idx" is the child's place on the family's form,
+-- from 0. Answers are never edited after they are sent, so it always points at the same child.
+create table if not exists public.angels (
+  response_id uuid not null references public.responses (id) on delete cascade,
+  idx int not null,
+  number int not null unique,
+  code text not null unique,
+  tag_response_id uuid references public.responses (id) on delete set null,  -- the tag form that took it
+  tagged_at timestamptz,
+  tagged_by text,                                                              -- 'tag form' or the admin's email
+  primary key (response_id, idx)
+);
+
+alter table public.angels enable row level security;
+create index if not exists angels_tag_idx on public.angels (tag_response_id);
+
+-- Give every child who does not have one yet an ID, in the order they signed up. IDs are never
+-- reused, so a printed tag always means the same child even if a sign-up is deleted.
+create or replace function public.assign_angel_codes(p_slug text, p_section text, p_prefix text)
+returns void language plpgsql as $$
+declare
+  next_n int;
+begin
+  perform pg_advisory_xact_lock(hashtext('angel_codes'));
+  select coalesce(max(number), 0) into next_n from public.angels;
+  insert into public.angels (response_id, idx, number, code)
+  select id, idx, next_n + n, p_prefix || (next_n + n)::text
+  from (
+    select r.id, (e.ord - 1)::int as idx, row_number() over (order by r.created_at, r.id, e.ord) as n
+    from public.responses r
+    cross join lateral jsonb_array_elements(
+      case when jsonb_typeof(r.answers -> p_section) = 'array' then r.answers -> p_section else '[]'::jsonb end
+    ) with ordinality as e(child, ord)
+    where r.form_slug = p_slug
+      and not exists (select 1 from public.angels a where a.response_id = r.id and a.idx = (e.ord - 1)::int)
+  ) fresh;
+end $$;
+
+-- IDs were first made as A-001; they are now A1, which is easier to type.
+update public.angels set code = 'A' || number where code like 'A-%';
+
+revoke all on function public.assign_angel_codes(text, text, text) from public, anon, authenticated;
+grant execute on function public.assign_angel_codes(text, text, text) to service_role;
